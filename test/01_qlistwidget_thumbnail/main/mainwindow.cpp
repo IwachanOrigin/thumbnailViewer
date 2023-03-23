@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent)
   ui.listWidgetMain->setItemDelegate(new ClipInfoDelegate());
   QObject::connect(ui.pushButtonSetListView, &QPushButton::pressed, this, &MainWindow::slotSetListView);
   QObject::connect(ui.pushButtonSetIconView, &QPushButton::pressed, this, &MainWindow::slotSetIconView);
-  QObject::connect(ui.listWidget, &QListWidget::itemClicked, this, &MainWindow::slotClipSelected);
+  QObject::connect(ui.listWidgetMain, &QListWidget::itemClicked, this, &MainWindow::slotClipSelected);
   QObject::connect(ui.pushButtonSelectDir, &QPushButton::pressed, this, &MainWindow::slotSelectDir);
 }
 
@@ -39,7 +39,7 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
       {
         continue;
       }
-      ui.listWidget->addItem(new ClipInfo(info.fileName()));
+      ui.listWidgetMain->addItem(new ClipInfo(info.fileName()));
     }
   }
 }
@@ -56,7 +56,7 @@ void MainWindow::slotSelectDir()
   }
 }
 
-void MainWindow::clipSelected(QListWidgetItem * item)
+void MainWindow::slotClipSelected(QListWidgetItem * item)
 {
   ClipInfo *clipInfo = static_cast<ClipInfo *>(item);
   QMessageBox::information(this, clipInfo->getClipName(), clipInfo->getClipFileName());
