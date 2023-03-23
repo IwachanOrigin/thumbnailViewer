@@ -35,7 +35,8 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 # Find the Qt libraries for Qt Quick/QML/Widgets/Gui
-find_package(Qt5 REQUIRED Qml Quick Gui Widgets)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Quick QuickControls2 Qml Gui Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Quick QuickControls2 Qml Gui Widgets)
 
 # Add files
 file(GLOB_RECURSE UI_FILES *.ui)
