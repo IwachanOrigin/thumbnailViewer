@@ -1,8 +1,12 @@
 
 set(main_src
+  clipinfo.cpp
+  clipinfo.h
+  clipinfodelegate.cpp
+  clipinfodelegate.h
   main.cpp
-  mainwindow.h
   mainwindow.cpp
+  mainwindow.h
 )
 
 add_executable(
