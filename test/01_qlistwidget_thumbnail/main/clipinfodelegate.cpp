@@ -2,28 +2,28 @@
 #include "clipinfodelegate.h"
 
 ClipInfoDelegate::ClipInfoDelegate(QObject *parent)
-    : QAbstractItemDelegate(parent)
-    , m_width(120)
-    , m_height(120)
+  : QAbstractItemDelegate(parent)
+  , m_width(120)
+  , m_height(120)
 {
 }
 
-void ClipInfoDelegate::paint(QPainter * painter, const QStyleOptionViewItem & option, const QModelIndex & index) const
+void ClipInfoDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
 	QRect r = option.rect;
 
 	if (option.state & QStyle::State_Selected)
-    {
+  {
 		painter->setBrush(QColor::fromRgb(154, 154, 54));
 		painter->drawRect(r);
 	}
 	else
-    {
+  {
 		painter->setBrush(QColor::fromRgb(32, 32, 32));
 		painter->drawRect(r);
 	}
 
-	QIcon icon = QIcon(qvariant_cast<QPixmap>(index.data(Qt::DecorationRole)));
+	QIcon icon = QIcon(qvariant_cast<QIcon>(index.data(Qt::DecorationRole)));
 	QString name = index.data(Qt::DisplayRole).toString();
 	QString uuid = index.data(Qt::UserRole + 0).toString();
 
@@ -31,7 +31,7 @@ void ClipInfoDelegate::paint(QPainter * painter, const QStyleOptionViewItem & op
 	int iw = 0;
 	int ih = 0;
 	if (!icon.isNull())
-    {
+  {
 		r = option.rect.adjusted(space, space, -space, -space);
 		icon.paint(painter, r, Qt::AlignVCenter | Qt::AlignLeft);
 		iw = space + icon.actualSize(QSize(100, 64)).width() + space;
@@ -48,6 +48,6 @@ void ClipInfoDelegate::paint(QPainter * painter, const QStyleOptionViewItem & op
 
 QSize ClipInfoDelegate::sizeHint(const QStyleOptionViewItem & option, const QModelIndex & index) const
 {
-    return QSize(m_width, m_height);
+  return QSize(m_width, m_height);
 }
 

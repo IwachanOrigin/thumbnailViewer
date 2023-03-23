@@ -1,5 +1,7 @@
 
+#include <QDebug>
 #include <QIcon>
+#include <QSize>
 #include <QMessageBox>
 #include <QDir>
 #include <QFileInfo>
@@ -16,6 +18,9 @@ MainWindow::MainWindow(QWidget *parent)
   ui.setupUi(this);
 
   ui.listWidgetMain->setItemDelegate(new ClipInfoDelegate());
+  ui.listWidgetMain->setIconSize(QSize(200, 150));
+  ui.listWidgetMain->setResizeMode(QListWidget::Adjust);
+
   QObject::connect(ui.pushButtonSetListView, &QPushButton::pressed, this, &MainWindow::slotSetListView);
   QObject::connect(ui.pushButtonSetIconView, &QPushButton::pressed, this, &MainWindow::slotSetIconView);
   QObject::connect(ui.listWidgetMain, &QListWidget::itemClicked, this, &MainWindow::slotClipSelected);
@@ -39,7 +44,7 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
       {
         continue;
       }
-      ui.listWidgetMain->addItem(new ClipInfo(info.fileName()));
+      ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName()));
     }
   }
 }
@@ -51,6 +56,7 @@ void MainWindow::slotSelectDir()
   dialog.setFileMode(QFileDialog::Directory);
   if (dialog.exec())
   {
+    ui.listWidgetMain->clear();
     QString dirName = dialog.directory().absolutePath();
     this->dirFilesInfo(dirName);
   }
