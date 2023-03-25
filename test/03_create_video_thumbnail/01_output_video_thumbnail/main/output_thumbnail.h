@@ -16,7 +16,7 @@ public:
   explicit OutputThumnail();
   ~OutputThumnail();
 
-  int open(const std::wstring inputFilename, const std::wstring outputFilename);
+  int open(const std::string inputFilename, const std::string outputFilename);
 
   bool createAPI();
   void destroyAPI();
