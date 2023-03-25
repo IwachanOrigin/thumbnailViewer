@@ -18,8 +18,8 @@ public:
 
   int open(const std::wstring inputFilename, const std::wstring outputFilename);
 
-  void initializeAPI();
-  void releaseAPI();
+  bool createAPI();
+  void destroyAPI();
 };
 
 #endif // OUTPUT_THUMBNAIL_H_

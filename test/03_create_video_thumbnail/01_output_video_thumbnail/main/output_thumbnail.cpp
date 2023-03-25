@@ -13,17 +13,29 @@ OutputThumnail::~OutputThumnail()
 int OutputThumnail::open(const std::wstring inputFilename, const std::wstring outputFilename)
 {
   HRESULT hr = S_OK;
+  IMFSourceResolver* pSourceResolver = NULL;
+  IUnknown* uSource = NULL;
+  IMFMediaSource* mediaFileSource = NULL;
+  IMFAttributes* pVideoReaderAttributes = NULL;
+  IMFSourceReader* pSourceReader = NULL;
+  IMFMediaType* pFileVideoMediaType = NULL;
+  IUnknown* spDecTransformUnk = NULL;
+  IMFTransform* pDecoderTransform = NULL; // This is H264 Decoder MFT.
+  IMFMediaType* pDecInputMediaType = NULL, * pDecOutputMediaType = NULL;
+  MF_OBJECT_TYPE ObjectType = MF_OBJECT_INVALID;
+  DWORD mftStatus = 0;
 
   return hr;
 }
 
-void OutputThumnail::initializeAPI()
+bool OutputThumnail::createAPI()
 {
-  CHECK_HR(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE), "COM initialisation failed.");
-  CHECK_HR(MFStartup(MF_VERSION), "Media Foundation initialisation failed.");
+  CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+  HRESULT hr = MFStartup(MF_VERSION);
+  return(hr == S_OK);
 }
 
-void OutputThumnail::releaseAPI()
+void OutputThumnail::destroyAPI()
 {
-  
+  MFShutdown();
 }
