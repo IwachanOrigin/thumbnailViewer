@@ -9,6 +9,7 @@
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "wmcodecdspuuid.lib")
+#pragma comment(lib, "d2d1.lib")
 
 void usage()
 {
@@ -17,7 +18,7 @@ void usage()
 
 int main(int argc, char* argv[])
 {
-  if (argc != 3)
+  if (argc != 2)
   {
     usage();
     return -1;
@@ -29,7 +30,7 @@ int main(int argc, char* argv[])
   if (ot.createAPI())
   {
     // Output buffer
-    ot.open(argv[1], argv[2]);
+    ot.open(argv[1]);
 
     // Release
     ot.destroyAPI();

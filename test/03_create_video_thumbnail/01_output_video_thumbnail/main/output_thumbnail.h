@@ -16,10 +16,13 @@ public:
   explicit OutputThumnail();
   ~OutputThumnail();
 
-  int open(const std::string inputFilename, const std::string outputFilename);
+  int open(const std::string inputFilename);
 
   bool createAPI();
   void destroyAPI();
+
+private:
+  RECT correctAspectRatio(const RECT& src, const MFRatio& srcPAR);
 };
 
 #endif // OUTPUT_THUMBNAIL_H_

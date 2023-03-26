@@ -1,11 +1,17 @@
 
+#include <vector>
+
 #include "output_thumbnail.h"
 #include "MFUtility.h"
+#include "sprite.h"
 
-#include <mfidl.h>
 #include <wrl/client.h>
 
 using namespace Microsoft::WRL;
+
+const LONGLONG SEEK_TOLERRANCE = 10000000;
+const LONGLONG MAX_FRAMES_TO_SKIP = 10;
+const DWORD MAX_SPRITES = 4;
 
 #define SAMPLE_COUNT 100
 
@@ -17,7 +23,7 @@ OutputThumnail::~OutputThumnail()
 {
 }
 
-int OutputThumnail::open(const std::string inputFilename, const std::string outputFilename)
+int OutputThumnail::open(const std::string inputFilename)
 {
   HRESULT hr = S_OK;
   ComPtr<IMFSourceResolver> pSourceResolver = nullptr;
@@ -26,12 +32,11 @@ int OutputThumnail::open(const std::string inputFilename, const std::string outp
   ComPtr<IMFAttributes> pVideoReaderAttributes = nullptr;
   ComPtr<IMFSourceReader> pSourceReader = nullptr;
   ComPtr<IMFMediaType> pFileVideoMediaType = nullptr;
-  ComPtr<IUnknown> spDecTransformUnk = nullptr;
-  ComPtr<IMFTransform> pDecoderTransform = nullptr; // This is H264 Decoder MFT.
-  ComPtr<IMFMediaType> pDecInputMediaType = nullptr;
-  ComPtr<IMFMediaType> pDecOutputMediaType = nullptr;
+  ComPtr<IMFMediaType> pMediaType = nullptr;
   MF_OBJECT_TYPE ObjectType = MF_OBJECT_INVALID;
-  DWORD mftStatus = 0;
+  uint32_t width = 0, height = 0;
+  LONG lStride = 0;
+  MFRatio par{};
 
   // Start processing frames.
   ComPtr<IMFSample> pVideoSample = nullptr;
@@ -41,9 +46,12 @@ int OutputThumnail::open(const std::string inputFilename, const std::string outp
   LONGLONG llVideoTimeStamp = 0, llSampleDuration = 0;
   int sampleCount = 0;
   DWORD sampleFlags = 0;
-  BOOL h264DecodeTransformFlushed = FALSE;
 
-  std::ofstream outputBuffer(outputFilename, std::ios::out | std::ios::binary);
+  // Init sprites
+  std::vector<Sprite> sprites;
+
+  // Init videoFormat
+  FormatInfo videoFormat{};
 
   // Set up the reader for the file.
   CHECK_HR(MFCreateSourceResolver(&pSourceResolver), "MFCreateSourceResolver failed.");
@@ -55,7 +63,7 @@ int OutputThumnail::open(const std::string inputFilename, const std::string outp
     wfilename         // URL of the source.
     , MF_RESOLUTION_MEDIASOURCE   // Create a source object.
     , nullptr                     // Optional property store.
-    , &ObjectType                 // Receives the created object type. 
+    , &ObjectType                 // Receives the created object type.
     , &uSource					          // Receives a pointer to the media source.
   ),
     "Failed to create media source resolver for file.");
@@ -75,34 +83,33 @@ int OutputThumnail::open(const std::string inputFilename, const std::string outp
   CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pFileVideoMediaType)
            , "Error retrieving current media type from first video stream.");
 
-  // Create H.264 decoder.
-  CHECK_HR(CoCreateInstance(CLSID_CMSH264DecoderMFT, NULL, CLSCTX_INPROC_SERVER , IID_IUnknown, (void**)&spDecTransformUnk)
-           , "Failed to create H264 decoder MFT.");
+  MFCreateMediaType(&pMediaType);
+  CHECK_HR(pMediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video), "Failed to set media mejor type.");
+  CHECK_HR(pMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32), "Failed to set media sub type.");
+  CHECK_HR(pSourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, pMediaType.Get())
+           , "Failed to set current media type.");
+  CHECK_HR(pSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, true), "Failed to set stream selection.");
 
-  CHECK_HR(spDecTransformUnk->QueryInterface(IID_PPV_ARGS(&pDecoderTransform)), "Failed to get IMFTransform interface from H264 decoder MFT object.");
-
-  MFCreateMediaType(&pDecInputMediaType);
-  CHECK_HR(pFileVideoMediaType->CopyAllItems(pDecInputMediaType.Get()), "Error copying media type attributes to decoder input media type.");
-  CHECK_HR(pDecoderTransform->SetInputType(0, pDecInputMediaType.Get(), 0), "Failed to set input media type on H.264 decoder MFT.");
-
-  MFCreateMediaType(&pDecOutputMediaType);
-  CHECK_HR(pFileVideoMediaType->CopyAllItems(pDecOutputMediaType.Get()), "Error copying media type attributes to decoder input media type.");
-  CHECK_HR(pDecOutputMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_IYUV), "Failed to set media sub type.");
-
-  CHECK_HR(pDecoderTransform->SetOutputType(0, pDecOutputMediaType.Get(), 0), "Failed to set output media type on H.264 decoder MFT.");
-
-  CHECK_HR(pDecoderTransform->GetInputStatus(0, &mftStatus), "Failed to get input status from H.264 decoder MFT.");
-  if (MFT_INPUT_STATUS_ACCEPT_DATA != mftStatus)
+  CHECK_HR(MFGetAttributeSize(pMediaType.Get(), MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
+  lStride = (LONG)MFGetAttributeUINT32(pMediaType.Get(), MF_MT_DEFAULT_STRIDE, 1);
+  videoFormat.bTopDown = (lStride > 0);
+  CHECK_HR(MFGetAttributeRatio(pMediaType.Get(), MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator)
+           , "Failed to get attribute ratio.");
+  if (par.Denominator != par.Numerator)
   {
-    printf("H.264 decoder MFT is not accepting data.\n");
-    goto done;
+    RECT rcSrc = {0, 0, (LONG)width, (LONG)height};
+    videoFormat.rcPicture = correctAspectRatio(rcSrc, par);
   }
+  else
+  {
+    // Either the PAR is not set (assume 1:1), or the PAR is set to 1:1.
+    SetRect(&videoFormat.rcPicture, 0, 0, width, height);
+  }
+  videoFormat.imageWidthPels = width;
+  videoFormat.imageHeightPels = height;
 
-  std::cout << "H264 decoder output media type: " << GetMediaTypeDescription(pDecOutputMediaType.Get()) << std::endl << std::endl;
-
-  CHECK_HR(pDecoderTransform->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, NULL), "Failed to process FLUSH command on H.264 decoder MFT.");
-  CHECK_HR(pDecoderTransform->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, NULL), "Failed to process BEGIN_STREAMING command on H.264 decoder MFT.");
-  CHECK_HR(pDecoderTransform->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, NULL), "Failed to process START_OF_STREAM command on H.264 decoder MFT.");
+  // Create the Direct2D resources.
+  
 
   while (sampleCount <= SAMPLE_COUNT)
   {
@@ -112,7 +119,7 @@ int OutputThumnail::open(const std::string inputFilename, const std::string outp
       , &streamIndex
       , &flags
       , &llVideoTimeStamp
-      , &pVideoSample 
+      , &pVideoSample
     ), "Error reading video sample.");
 
     if (flags & MF_SOURCE_READERF_STREAMTICK)
@@ -152,36 +159,8 @@ int OutputThumnail::open(const std::string inputFilename, const std::string outp
 
       // Replicate transmitting the sample across the network and reconstructing.
       CHECK_HR(CreateAndCopySingleBufferIMFSample(pVideoSample.Get(), &pCopyVideoSample), "Failed to copy single buffer IMF sample.");
-
-      // Apply the H264 decoder transform
-      CHECK_HR(pDecoderTransform->ProcessInput(0, pCopyVideoSample.Get(), 0), "The H264 decoder ProcessInput call failed.");
-
-      HRESULT getOutputResult = S_OK;
-      while (getOutputResult == S_OK)
-      {
-        getOutputResult = GetTransformOutput(pDecoderTransform.Get(), &pH264DecodeOutSample, &h264DecodeTransformFlushed);
-        if (getOutputResult != S_OK && getOutputResult != MF_E_TRANSFORM_NEED_MORE_INPUT)
-        {
-          printf("Error getting H264 decoder transform output, error code %.2X.\n", getOutputResult);
-          goto done;
-        }
-        if (h264DecodeTransformFlushed == TRUE)
-        {
-          // H264 decoder format changed. Clear the capture file and start again.
-          outputBuffer.close();
-          outputBuffer.open(outputFilename, std::ios::out | std::ios::binary);
-        }
-        else if (pH264DecodeOutSample != NULL)
-        {
-          // Write decoded sample to capture file.
-          CHECK_HR(WriteSampleToFile(pH264DecodeOutSample.Get(), &outputBuffer), "Failed to write sample to file.");
-        }
-      }
-      sampleCount++;
     }
   }
-
-  outputBuffer.close();
 
 done:
 
@@ -198,4 +177,37 @@ bool OutputThumnail::createAPI()
 void OutputThumnail::destroyAPI()
 {
   MFShutdown();
+}
+
+//-----------------------------------------------------------------------------
+// CorrectAspectRatio
+//
+// Converts a rectangle from the source's pixel aspect ratio (PAR) to 1:1 PAR.
+// Returns the corrected rectangle.
+//
+// For example, a 720 x 486 rect with a PAR of 9:10, when converted to 1x1 PAR,  
+// is stretched to 720 x 540. 
+//-----------------------------------------------------------------------------
+RECT OutputThumnail::correctAspectRatio(const RECT& src, const MFRatio& srcPAR)
+{
+  // Start with a rectangle the same size as src, but offset to the origin (0,0).
+  RECT rc = {0, 0, src.right - src.left, src.bottom - src.top};
+
+  if ((srcPAR.Numerator != 1) || (srcPAR.Denominator != 1))
+  {
+    // Correct for the source's PAR.
+
+    if (srcPAR.Numerator > srcPAR.Denominator)
+    {
+      // The source has "wide" pixels, so stretch the width.
+      rc.right = MulDiv(rc.right, srcPAR.Numerator, srcPAR.Denominator);
+    }
+    else if (srcPAR.Numerator < srcPAR.Denominator)
+    {
+      // The source has "tall" pixels, so stretch the height.
+      rc.bottom = MulDiv(rc.bottom, srcPAR.Denominator, srcPAR.Numerator);
+    }
+    // else: PAR is 1:1, which is a no-op.
+  }
+  return rc;
 }

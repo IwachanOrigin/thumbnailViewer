@@ -11,19 +11,24 @@
 //
 //////////////////////////////////////////////////////////////////////////
 
-#include "videothumbnail.h"
 #include "sprite.h"
 
 #include <math.h>
 #include <float.h>
 
+template <class T> void SafeRelease(T** ppT)
+{
+  if (*ppT)
+  {
+    (*ppT)->Release();
+    *ppT = NULL;
+  }
+}
 
 D2D1_RECT_F LetterBoxRectF(D2D1_SIZE_F aspectRatio, const D2D1_RECT_F &rcDest);
 
 const float WOBBLE_ANGLE = 10.0f;
 const float WOBBLE_DECAY = 0.25f;
-
-
 
 inline D2D1_RECT_F operator+(const D2D1_RECT_F& r1, const D2D1_RECT_F& r2)
 {
