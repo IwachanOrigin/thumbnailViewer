@@ -2,6 +2,7 @@
 #ifndef OUTPUT_THUMBNAIL_H_
 #define OUTPUT_THUMBNAIL_H_
 
+#include <windows.h>
 #include <string>
 
 #include <mfapi.h>
@@ -15,6 +16,7 @@
 #include <d2d1.h>
 #include <d2d1_1.h>
 #include <d2d1helper.h>
+#include <dxgi1_2.h>
 
 #include "sprite.h"
 
@@ -33,7 +35,7 @@ public:
 
 private:
   RECT correctAspectRatio(const RECT& src, const MFRatio& srcPAR);
-  HRESULT createDrawindResources(HWND hwnd, ID2D1HwndRenderTarget* rt);
+  HRESULT createDrawindResources(HWND hwnd, ComPtr<ID2D1HwndRenderTarget>& rt);
   HRESULT canSeek(BOOL* pbCanSeek, IMFSourceReader* reader);
   HRESULT getDuration(LONGLONG* phnsDuration, IMFSourceReader* reader);
   HRESULT createD3D11Device();
@@ -44,6 +46,9 @@ private:
   ComPtr<ID2D1Factory1> m_d2dFactory1;
   ComPtr<ID2D1Device> m_d2dDevice;
   ComPtr<ID2D1DeviceContext> m_d2dContext;
+  ComPtr<IDXGISwapChain1> m_swapChain;
+
+  HWND m_hwnd;
 };
 
 #endif // OUTPUT_THUMBNAIL_H_

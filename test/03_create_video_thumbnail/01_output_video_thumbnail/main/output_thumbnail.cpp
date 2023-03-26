@@ -20,6 +20,7 @@ const DWORD MAX_SPRITES = 4;
 #define SAMPLE_COUNT 100
 
 OutputThumbnail::OutputThumbnail()
+  : m_hwnd(nullptr)
 {
 }
 
@@ -30,12 +31,9 @@ OutputThumbnail::~OutputThumbnail()
 int OutputThumbnail::open(const std::string inputFilename)
 {
   HRESULT hr = S_OK;
-  ComPtr<IMFSourceResolver> pSourceResolver = nullptr;
-  ComPtr<IUnknown> uSource = nullptr;
   ComPtr<IMFMediaSource> mediaFileSource = nullptr;
   ComPtr<IMFAttributes> pVideoReaderAttributes = nullptr;
   ComPtr<IMFSourceReader> pSourceReader = nullptr;
-  ComPtr<IMFMediaType> pFileVideoMediaType = nullptr;
   ComPtr<IMFMediaType> pMediaType = nullptr;
   MF_OBJECT_TYPE ObjectType = MF_OBJECT_INVALID;
   uint32_t width = 0, height = 0;
@@ -73,35 +71,13 @@ int OutputThumbnail::open(const std::string inputFilename)
   // Init videoFormat
   FormatInfo videoFormat{};
 
-  // Set up the reader for the file.
-  CHECK_HR(MFCreateSourceResolver(&pSourceResolver), "MFCreateSourceResolver failed.");
-
   wchar_t wfilename[256]{};
   mbstowcs(wfilename, inputFilename.c_str(), sizeof(wfilename) / sizeof(wchar_t));
 
-  CHECK_HR(pSourceResolver->CreateObjectFromURL(
-    wfilename         // URL of the source.
-    , MF_RESOLUTION_MEDIASOURCE   // Create a source object.
-    , nullptr                     // Optional property store.
-    , &ObjectType                 // Receives the created object type.
-    , &uSource					          // Receives a pointer to the media source.
-  ),
-    "Failed to create media source resolver for file.");
+  CHECK_HR(MFCreateAttributes(&pVideoReaderAttributes, 1), "Failed to create attributes object for video reader.");
+  CHECK_HR(pVideoReaderAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE), "Failed to set MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING.");
 
-  CHECK_HR(uSource->QueryInterface(IID_PPV_ARGS(&mediaFileSource)), "Failed to create media file source.");
-  CHECK_HR(MFCreateAttributes(&pVideoReaderAttributes, 2), "Failed to create attributes object for video reader.");
-
-  CHECK_HR(pVideoReaderAttributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE, MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID)
-    , "Failed to set dev source attribute type for reader config.");
-
-  CHECK_HR(pVideoReaderAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1)
-    , "Failed to set enable video processing attribute type for reader config.");
-
-  CHECK_HR(MFCreateSourceReaderFromMediaSource(mediaFileSource.Get(), pVideoReaderAttributes.Get(), &pSourceReader)
-    , "Error creating media source reader.");
-
-  CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pFileVideoMediaType)
-    , "Error retrieving current media type from first video stream.");
+  CHECK_HR(MFCreateSourceReaderFromURL(wfilename, pVideoReaderAttributes.Get(), &pSourceReader), "Failed to MFCreateSourceReaderFromURL.");
 
   MFCreateMediaType(&pMediaType);
   CHECK_HR(pMediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video), "Failed to set media mejor type.");
@@ -110,10 +86,15 @@ int OutputThumbnail::open(const std::string inputFilename)
     , "Failed to set current media type.");
   CHECK_HR(pSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, true), "Failed to set stream selection.");
 
-  CHECK_HR(MFGetAttributeSize(pMediaType.Get(), MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
-  lStride = (LONG)MFGetAttributeUINT32(pMediaType.Get(), MF_MT_DEFAULT_STRIDE, 1);
+  IMFMediaType* pType = NULL;
+  GUID subtype = { 0 };
+  CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
+  CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "");
+
+  CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
+  lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
   videoFormat.bTopDown = (lStride > 0);
-  CHECK_HR(MFGetAttributeRatio(pMediaType.Get(), MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator)
+  CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator)
     , "Failed to get attribute ratio.");
   if (par.Denominator != par.Numerator)
   {
@@ -127,18 +108,21 @@ int OutputThumbnail::open(const std::string inputFilename)
   }
   videoFormat.imageWidthPels = width;
   videoFormat.imageHeightPels = height;
+  pType->Release();
+  pType = nullptr;
+
 
   // Create the Direct2D resources.
-  HWND dummyHWND = ::CreateWindow(L"STATIC"
+  m_hwnd = ::CreateWindow(L"STATIC"
     , L"dummy"
-    , WS_VISIBLE
+    , WS_DISABLED
     , 0, 0, 100, 100
     , nullptr
     , nullptr
     , nullptr
     , nullptr);
-  ::SetWindowText(dummyHWND, L"Dummy Window!");
-  CHECK_HR(this->createDrawindResources(dummyHWND, g_pRT.Get()), "Failed to create ID2D1HwndRenderTarget.");
+  ::SetWindowText(m_hwnd, L"Dummy Window!");
+  CHECK_HR(this->createDrawindResources(m_hwnd, g_pRT), "Failed to create ID2D1HwndRenderTarget.");
 
   // Create bitmaps
   hr = this->canSeek(&bCanSeek, pSourceReader.Get());
@@ -218,13 +202,45 @@ int OutputThumbnail::open(const std::string inputFilename)
             break;
           }
 
+          if (dwFlags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED)
+          {
+            // Type change. Get the new format.
+            IMFMediaType* pType = NULL;
+            GUID subtype = { 0 };
+            CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
+            CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "");
+
+            CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
+            lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
+            videoFormat.bTopDown = (lStride > 0);
+            CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator)
+              , "Failed to get attribute ratio.");
+            if (par.Denominator != par.Numerator)
+            {
+              RECT rcSrc = { 0, 0, (LONG)width, (LONG)height };
+              videoFormat.rcPicture = correctAspectRatio(rcSrc, par);
+            }
+            else
+            {
+              // Either the PAR is not set (assume 1:1), or the PAR is set to 1:1.
+              SetRect(&videoFormat.rcPicture, 0, 0, width, height);
+            }
+            videoFormat.imageWidthPels = width;
+            videoFormat.imageHeightPels = height;
+            pType->Release();
+            pType = nullptr;
+          }
+
           if (pSampleTmp == NULL)
           {
             continue;
           }
 
           // We got a sample. Hold onto it.
-          pSample->Release();
+          if (pSample)
+          {
+            pSample->Release();
+          }
 
           pSample = pSampleTmp;
           pSample->AddRef();
@@ -332,6 +348,11 @@ int OutputThumbnail::open(const std::string inputFilename)
 
     if (SUCCEEDED(hr))
     {
+      hr = pWICFactory->CreateEncoder(GUID_ContainerFormatPng, NULL, &pEncoder);
+    }
+
+    if (SUCCEEDED(hr))
+    {
       hr = pEncoder->Initialize(pStream.Get(), WICBitmapEncoderNoCache);
     }
     if (SUCCEEDED(hr))
@@ -343,10 +364,20 @@ int OutputThumbnail::open(const std::string inputFilename)
       hr = pFrameEncode->Initialize(nullptr);
     }
 
+    ComPtr<ID2D1DeviceContext> dc = nullptr;
+    ComPtr<ID2D1Device> d2dDevice = nullptr;
+    hr = g_pRT->QueryInterface(dc.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+      dc->GetDevice(&d2dDevice);
+    }
+    
     // Create d3d device
-    this->createD3D11Device();
-
-    hr = pWICFactory->CreateImageEncoder(m_d2dDevice.Get(), &imageEncoder);
+    //this->createD3D11Device();
+    if (d2dDevice)
+    {
+      hr = pWICFactory->CreateImageEncoder(d2dDevice.Get(), &imageEncoder);
+    }
     if (SUCCEEDED(hr))
     {
       hr = imageEncoder->WriteFrame(sprites[0].getBitmap(), pFrameEncode.Get(), nullptr);
@@ -420,7 +451,7 @@ RECT OutputThumbnail::correctAspectRatio(const RECT& src, const MFRatio& srcPAR)
   return rc;
 }
 
-HRESULT OutputThumbnail::createDrawindResources(HWND hwnd, ID2D1HwndRenderTarget* rt)
+HRESULT OutputThumbnail::createDrawindResources(HWND hwnd, ComPtr<ID2D1HwndRenderTarget>& rt)
 {
   HRESULT hr = S_OK;
   RECT rcClient = { 0 };
@@ -444,13 +475,12 @@ HRESULT OutputThumbnail::createDrawindResources(HWND hwnd, ID2D1HwndRenderTarget
         hwnd,
         D2D1::SizeU(rcClient.right, rcClient.bottom)
       ),
-      &pRenderTarget
+      &rt
     );
   }
 
   if (SUCCEEDED(hr))
   {
-    rt = pRenderTarget.Get();
     rt->AddRef();
   }
 
@@ -559,9 +589,16 @@ HRESULT OutputThumbnail::createD3D11Device()
     )
   );
 
-  ComPtr<IDXGIDevice> dxgiDevice;
+  ComPtr<IDXGIDevice1> dxgiDevice;
   // Obtain the underlying DXGI device of the Direct3D11 device.
   ThrowIfFailed(m_device.As(&dxgiDevice));
+
+  ThrowIfFailed(
+    D2D1CreateFactory(
+      D2D1_FACTORY_TYPE_SINGLE_THREADED
+      , m_d2dFactory1.GetAddressOf()
+    )
+  );
 
   // Obtain the Direct2D device for 2-D rendering.
   ThrowIfFailed(
