@@ -350,20 +350,22 @@ int OutputThumbnail::open(const std::string inputFilename)
 
     if (SUCCEEDED(hr))
     {
-      hr = pWICFactory->CreateEncoder(GUID_ContainerFormatBmp, NULL, &pEncoder);
+      hr = pWICFactory->CreateEncoder(GUID_ContainerFormatPng, NULL, &pEncoder);
     }
 
     if (SUCCEEDED(hr))
     {
       hr = pEncoder->Initialize(pStream.Get(), WICBitmapEncoderNoCache);
     }
+    IPropertyBag2* pPropertyBag = NULL;
+
     if (SUCCEEDED(hr))
     {
-      hr = pEncoder->CreateNewFrame(&pFrameEncode, nullptr);
+      hr = pEncoder->CreateNewFrame(&pFrameEncode, &pPropertyBag);
     }
     if (SUCCEEDED(hr))
     {
-      hr = pFrameEncode->Initialize(nullptr);
+      hr = pFrameEncode->Initialize(pPropertyBag);
     }
 #if 0
     ComPtr<ID2D1DeviceContext> dc = nullptr;
@@ -373,8 +375,6 @@ int OutputThumbnail::open(const std::string inputFilename)
     {
       dc->GetDevice(&d2dDevice);
     }
-#endif
-        
     if (m_d2dDevice)
     {
       hr = pWICFactory->CreateImageEncoder(m_d2dDevice.Get(), &imageEncoder);
@@ -382,6 +382,30 @@ int OutputThumbnail::open(const std::string inputFilename)
     if (SUCCEEDED(hr))
     {
       hr = imageEncoder->WriteFrame(sprites[0].getBitmap(), pFrameEncode.Get(), nullptr);
+    }
+
+#endif
+        
+    if (SUCCEEDED(hr))
+    {
+      hr = pFrameEncode->SetSize(sprites[0].getBitmap()->GetSize().width, sprites[0].getBitmap()->GetSize().height);
+    }
+
+    if (SUCCEEDED(hr))
+    {
+      WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
+      hr = pFrameEncode->SetPixelFormat(&format);
+    }
+    if (SUCCEEDED(hr))
+    {
+#if 0
+      hr = pFrameEncode->WritePixels(
+        sprites[0].getBitmap()->GetSize().height
+        , sprites[0].getBitmap()->GetStride()
+        , sprites[0].getBitmap()->GetSize().width * sprites[0].getBitmap()->GetSize().height * 4
+        , sprites[0].getBitmap()->GetPixels()
+      );
+#endif
     }
 
     if (SUCCEEDED(hr))
