@@ -111,6 +111,8 @@ int OutputThumbnail::open(const std::string inputFilename)
   pType->Release();
   pType = nullptr;
 
+  // Create d3d device
+  this->createD3D11Device();
 
   // Create the Direct2D resources.
   m_hwnd = ::CreateWindow(L"STATIC"
@@ -348,7 +350,7 @@ int OutputThumbnail::open(const std::string inputFilename)
 
     if (SUCCEEDED(hr))
     {
-      hr = pWICFactory->CreateEncoder(GUID_ContainerFormatPng, NULL, &pEncoder);
+      hr = pWICFactory->CreateEncoder(GUID_ContainerFormatBmp, NULL, &pEncoder);
     }
 
     if (SUCCEEDED(hr))
@@ -372,14 +374,10 @@ int OutputThumbnail::open(const std::string inputFilename)
       dc->GetDevice(&d2dDevice);
     }
 #endif
-    
-    // Create d3d device
-    this->createD3D11Device();
-    ComPtr<ID2D1Device> d2dDevice;
-    m_d2dContext->GetDevice(&d2dDevice);
-    if (d2dDevice)
+        
+    if (m_d2dDevice)
     {
-      hr = pWICFactory->CreateImageEncoder(d2dDevice.Get(), &imageEncoder);
+      hr = pWICFactory->CreateImageEncoder(m_d2dDevice.Get(), &imageEncoder);
     }
     if (SUCCEEDED(hr))
     {
@@ -459,20 +457,11 @@ HRESULT OutputThumbnail::createDrawindResources(HWND hwnd, ComPtr<ID2D1HwndRende
   HRESULT hr = S_OK;
   RECT rcClient = { 0 };
 
-  ComPtr<ID2D1Factory> pFactory = nullptr;
-  ComPtr<ID2D1HwndRenderTarget> pRenderTarget = nullptr;
-
   GetClientRect(hwnd, &rcClient);
-
-  hr = D2D1CreateFactory(
-    D2D1_FACTORY_TYPE_SINGLE_THREADED
-    , pFactory.GetAddressOf()
-  );
-
 
   if (SUCCEEDED(hr))
   {
-    hr = pFactory->CreateHwndRenderTarget(
+    hr = m_d2dFactory1->CreateHwndRenderTarget(
       D2D1::RenderTargetProperties(),
       D2D1::HwndRenderTargetProperties(
         hwnd,
