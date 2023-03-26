@@ -9,11 +9,15 @@
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "wmcodecdspuuid.lib")
+#pragma comment(lib, "propsys.lib")
+
+#pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "WindowsCodecs.lib")
 
 void usage()
 {
-  std::wcout << "output_video_thumbnail.exe <input file name> <output file name>" << std::endl;
+  std::wcout << "output_video_thumbnail.exe <input file name>" << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -24,7 +28,7 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  OutputThumnail ot;
+  OutputThumbnail ot;
 
   // Create API
   if (ot.createAPI())

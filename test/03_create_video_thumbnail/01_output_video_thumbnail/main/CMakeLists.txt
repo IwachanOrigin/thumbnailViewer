@@ -4,6 +4,7 @@ set(main_src
   output_thumbnail.h
   output_thumbnail.cpp
   MFUtility.h
+  dxhelper.h
   sprite.h
   sprite.cpp
 )

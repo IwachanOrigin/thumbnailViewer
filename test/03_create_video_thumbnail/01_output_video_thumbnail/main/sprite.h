@@ -88,6 +88,7 @@ public:
   ~Sprite();
 
   void    SetBitmap(ID2D1Bitmap *pBitmap, const FormatInfo& format);
+  ID2D1Bitmap* getBitmap() { return m_pBitmap; }
 
   void    AnimateBoundingBox(const D2D1_RECT_F& bound2, float time, float duration); 
   void    Update(ID2D1HwndRenderTarget *pRT, float time);
