@@ -363,7 +363,7 @@ int OutputThumbnail::open(const std::string inputFilename)
     {
       hr = pFrameEncode->Initialize(nullptr);
     }
-
+#if 0
     ComPtr<ID2D1DeviceContext> dc = nullptr;
     ComPtr<ID2D1Device> d2dDevice = nullptr;
     hr = g_pRT->QueryInterface(dc.GetAddressOf());
@@ -371,9 +371,12 @@ int OutputThumbnail::open(const std::string inputFilename)
     {
       dc->GetDevice(&d2dDevice);
     }
+#endif
     
     // Create d3d device
-    //this->createD3D11Device();
+    this->createD3D11Device();
+    ComPtr<ID2D1Device> d2dDevice;
+    m_d2dContext->GetDevice(&d2dDevice);
     if (d2dDevice)
     {
       hr = pWICFactory->CreateImageEncoder(d2dDevice.Get(), &imageEncoder);
