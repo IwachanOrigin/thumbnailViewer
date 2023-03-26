@@ -4,6 +4,8 @@ set(main_src
   output_thumbnail.h
   output_thumbnail.cpp
   MFUtility.h
+  sprite.h
+  sprite.cpp
 )
 
 add_executable(${PROJECT_NAME} ${main_src})
