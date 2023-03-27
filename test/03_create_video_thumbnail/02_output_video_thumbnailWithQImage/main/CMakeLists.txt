@@ -1,12 +1,21 @@
 
 set(main_src
   main.cpp
-  output_thumbnail.h
-  output_thumbnail.cpp
+  mainwindow.cpp
+  mainwindow.h
   MFUtility.h
+  output_thumbnail.cpp
+  output_thumbnail.h
 )
 
-add_executable(${PROJECT_NAME} ${main_src})
+add_executable(
+  ${PROJECT_NAME}
+  WIN32
+  ${main_src}
+  ${UI_FILES}
+  ${RC_FILES}
+  ${QRC_FILES}
+)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Widgets)
