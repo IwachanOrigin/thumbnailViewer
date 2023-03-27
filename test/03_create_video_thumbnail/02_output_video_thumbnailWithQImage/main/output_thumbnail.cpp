@@ -1,16 +1,16 @@
 
 #include <windows.h>
 
-#include "MFUtility.h"
-
-#include <vector>
-
 #include <propvarutil.h>
 #include <assert.h>
 #include <dwrite.h>
 #include <wincodec.h>
 
-#include "dxhelper.h"
+#include <QImage>
+#include <QPainter>
+#include <QGraphicsScene>
+
+#include "MFUtility.h"
 #include "output_thumbnail.h"
 
 const LONGLONG SEEK_TOLERANCE = 10000000;
@@ -20,7 +20,6 @@ const DWORD MAX_SPRITES = 4;
 #define SAMPLE_COUNT 100
 
 OutputThumbnail::OutputThumbnail()
-  : m_hwnd(nullptr)
 {
 }
 
@@ -39,7 +38,6 @@ int OutputThumbnail::open(const std::string inputFilename)
   uint32_t width = 0, height = 0;
   LONG lStride = 0;
   MFRatio par{};
-  ComPtr<ID2D1HwndRenderTarget> g_pRT = nullptr;
 
   // create bitmaps
   LONGLONG hnsDuration = 0;
@@ -54,7 +52,6 @@ int OutputThumbnail::open(const std::string inputFilename)
 
   ComPtr<IMFMediaBuffer> pBuffer = nullptr;
   ComPtr<IMFSample> pSample = nullptr;
-  ComPtr<ID2D1Bitmap> pBitmap = nullptr;
   DWORD dwFlags = 0;
 
   // Output bitmaps
@@ -64,12 +61,10 @@ int OutputThumbnail::open(const std::string inputFilename)
   ComPtr<IWICStream> pStream = nullptr;
   ComPtr<IWICImageEncoder> imageEncoder = nullptr;
 
-  // Init sprites
-  std::vector<Sprite> sprites;
-  sprites.resize(MAX_SPRITES);
-
   // Init videoFormat
   FormatInfo videoFormat{};
+  IMFMediaType* pType = NULL;
+  GUID subtype = { 0 };
 
   wchar_t wfilename[256]{};
   mbstowcs(wfilename, inputFilename.c_str(), sizeof(wfilename) / sizeof(wchar_t));
@@ -86,8 +81,6 @@ int OutputThumbnail::open(const std::string inputFilename)
     , "Failed to set current media type.");
   CHECK_HR(pSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, true), "Failed to set stream selection.");
 
-  IMFMediaType* pType = NULL;
-  GUID subtype = { 0 };
   CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
   CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "");
 
@@ -110,21 +103,6 @@ int OutputThumbnail::open(const std::string inputFilename)
   videoFormat.imageHeightPels = height;
   pType->Release();
   pType = nullptr;
-
-  // Create d3d device
-  this->createD3D11Device();
-
-  // Create the Direct2D resources.
-  m_hwnd = ::CreateWindow(L"STATIC"
-    , L"dummy"
-    , WS_DISABLED
-    , 0, 0, 100, 100
-    , nullptr
-    , nullptr
-    , nullptr
-    , nullptr);
-  ::SetWindowText(m_hwnd, L"Dummy Window!");
-  CHECK_HR(this->createDrawindResources(m_hwnd, g_pRT), "Failed to create ID2D1HwndRenderTarget.");
 
   // Create bitmaps
   hr = this->canSeek(&bCanSeek, pSourceReader.Get());
@@ -299,16 +277,22 @@ int OutputThumbnail::open(const std::string inputFilename)
 
           assert(cbBitmapData == (pitch * videoFormat.imageHeightPels));
 
-          hr = g_pRT->CreateBitmap(
-            D2D1::SizeU(videoFormat.imageWidthPels, videoFormat.imageHeightPels),
-            pBitmapData,
-            pitch,
-            D2D1::BitmapProperties(
-              // Format = RGB32
-              D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE)
-            ),
-            &pBitmap
-          );
+          // Create Bitmap
+          QGraphicsScene* scene = new QGraphicsScene();
+          scene->setSceneRect(0, 0, 2, 2);
+          QImage img(scene->sceneRect().size().toSize(), QImage::Format_RGB32);
+          QPainter painter(&img);
+          scene->render(&painter);
+
+          bool b = img.save("test.png");
+          
+          if (!b)
+          {
+            if (pBitmapData)
+            {
+              pBuffer->Unlock();
+            }
+          }
 
           if (FAILED(hr))
           {
@@ -317,108 +301,12 @@ int OutputThumbnail::open(const std::string inputFilename)
               pBuffer->Unlock();
             }
           }
-
-          sprites[i].SetBitmap(pBitmap.Get(), videoFormat);
         }
         else
         {
           hr = MF_E_END_OF_STREAM;
         }
       }
-    }
-
-    // Output Bitmaps
-    hr = CoCreateInstance(
-      CLSID_WICImagingFactory,
-      NULL,
-      CLSCTX_INPROC_SERVER,
-      IID_IWICImagingFactory,
-      reinterpret_cast<void**>(pWICFactory.GetAddressOf())
-    );
-
-    if (SUCCEEDED(hr))
-    {
-      hr = pWICFactory->CreateStream(&pStream);
-    }
-
-    WICPixelFormatGUID format = GUID_WICPixelFormatDontCare;
-    if (SUCCEEDED(hr))
-    {
-      static const WCHAR filename[] = L"output.png";
-      hr = pStream->InitializeFromFilename(filename, GENERIC_WRITE);
-    }
-
-    if (SUCCEEDED(hr))
-    {
-      hr = pWICFactory->CreateEncoder(GUID_ContainerFormatPng, NULL, &pEncoder);
-    }
-
-    if (SUCCEEDED(hr))
-    {
-      hr = pEncoder->Initialize(pStream.Get(), WICBitmapEncoderNoCache);
-    }
-    IPropertyBag2* pPropertyBag = NULL;
-
-    if (SUCCEEDED(hr))
-    {
-      hr = pEncoder->CreateNewFrame(&pFrameEncode, &pPropertyBag);
-    }
-    if (SUCCEEDED(hr))
-    {
-      hr = pFrameEncode->Initialize(pPropertyBag);
-    }
-#if 0
-    ComPtr<ID2D1DeviceContext> dc = nullptr;
-    ComPtr<ID2D1Device> d2dDevice = nullptr;
-    hr = g_pRT->QueryInterface(dc.GetAddressOf());
-    if (SUCCEEDED(hr))
-    {
-      dc->GetDevice(&d2dDevice);
-    }
-    if (m_d2dDevice)
-    {
-      hr = pWICFactory->CreateImageEncoder(m_d2dDevice.Get(), &imageEncoder);
-    }
-    if (SUCCEEDED(hr))
-    {
-      hr = imageEncoder->WriteFrame(sprites[0].getBitmap(), pFrameEncode.Get(), nullptr);
-    }
-
-#endif
-        
-    if (SUCCEEDED(hr))
-    {
-      hr = pFrameEncode->SetSize(sprites[0].getBitmap()->GetSize().width, sprites[0].getBitmap()->GetSize().height);
-    }
-
-    if (SUCCEEDED(hr))
-    {
-      WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
-      hr = pFrameEncode->SetPixelFormat(&format);
-    }
-    if (SUCCEEDED(hr))
-    {
-#if 0
-      hr = pFrameEncode->WritePixels(
-        sprites[0].getBitmap()->GetSize().height
-        , sprites[0].getBitmap()->GetStride()
-        , sprites[0].getBitmap()->GetSize().width * sprites[0].getBitmap()->GetSize().height * 4
-        , sprites[0].getBitmap()->GetPixels()
-      );
-#endif
-    }
-
-    if (SUCCEEDED(hr))
-    {
-      hr = pFrameEncode->Commit();
-    }
-    if (SUCCEEDED(hr))
-    {
-      hr = pEncoder->Commit();
-    }
-    if (SUCCEEDED(hr))
-    {
-      hr = pStream->Commit(STGC_DEFAULT);
     }
   }
 
@@ -474,33 +362,6 @@ RECT OutputThumbnail::correctAspectRatio(const RECT& src, const MFRatio& srcPAR)
     // else: PAR is 1:1, which is a no-op.
   }
   return rc;
-}
-
-HRESULT OutputThumbnail::createDrawindResources(HWND hwnd, ComPtr<ID2D1HwndRenderTarget>& rt)
-{
-  HRESULT hr = S_OK;
-  RECT rcClient = { 0 };
-
-  GetClientRect(hwnd, &rcClient);
-
-  if (SUCCEEDED(hr))
-  {
-    hr = m_d2dFactory1->CreateHwndRenderTarget(
-      D2D1::RenderTargetProperties(),
-      D2D1::HwndRenderTargetProperties(
-        hwnd,
-        D2D1::SizeU(rcClient.right, rcClient.bottom)
-      ),
-      &rt
-    );
-  }
-
-  if (SUCCEEDED(hr))
-  {
-    rt->AddRef();
-  }
-
-  return hr;
 }
 
 HRESULT OutputThumbnail::canSeek(BOOL* pbCanSeek, IMFSourceReader* reader)
@@ -570,64 +431,6 @@ HRESULT OutputThumbnail::getDuration(LONGLONG* phnsDuration, IMFSourceReader* re
   }
 
   PropVariantClear(&var);
-
-  return hr;
-}
-
-HRESULT OutputThumbnail::createD3D11Device()
-{
-  HRESULT hr = S_OK;
-  UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-
-  D3D_FEATURE_LEVEL featureLevels[] =
-  {
-      D3D_FEATURE_LEVEL_11_1,
-      D3D_FEATURE_LEVEL_11_0,
-      D3D_FEATURE_LEVEL_10_1,
-      D3D_FEATURE_LEVEL_10_0,
-      D3D_FEATURE_LEVEL_9_3,
-      D3D_FEATURE_LEVEL_9_2,
-      D3D_FEATURE_LEVEL_9_1
-  };
-
-  ThrowIfFailed(
-    D3D11CreateDevice(
-      nullptr,                    // specify null to use the default adapter
-      D3D_DRIVER_TYPE_HARDWARE,
-      0,
-      creationFlags,              // optionally set debug and Direct2D compatibility flags
-      featureLevels,              // list of feature levels this app can support
-      ARRAYSIZE(featureLevels),   // number of possible feature levels
-      D3D11_SDK_VERSION,
-      &m_device,                    // returns the Direct3D device created
-      &m_featureLevel,            // returns feature level of device created
-      &m_context                    // returns the device immediate context
-    )
-  );
-
-  ComPtr<IDXGIDevice1> dxgiDevice;
-  // Obtain the underlying DXGI device of the Direct3D11 device.
-  ThrowIfFailed(m_device.As(&dxgiDevice));
-
-  ThrowIfFailed(
-    D2D1CreateFactory(
-      D2D1_FACTORY_TYPE_SINGLE_THREADED
-      , m_d2dFactory1.GetAddressOf()
-    )
-  );
-
-  // Obtain the Direct2D device for 2-D rendering.
-  ThrowIfFailed(
-    m_d2dFactory1->CreateDevice(dxgiDevice.Get(), &m_d2dDevice)
-  );
-
-  // Get Direct2D device's corresponding device context object.
-  ThrowIfFailed(
-    m_d2dDevice->CreateDeviceContext(
-      D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-      &m_d2dContext
-    )
-  );
 
   return hr;
 }
