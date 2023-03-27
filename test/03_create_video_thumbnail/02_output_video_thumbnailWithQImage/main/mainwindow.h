@@ -29,6 +29,7 @@ private:
 private slots:
   void slotPushButtonSelectInputFile();
   void slotPushButtonSelectOutputDir();
+  void slotPushButtonGenerateThumbnails();
 };
 
 #endif // MAIN_WINDOW_H_
