@@ -77,8 +77,7 @@ int OutputThumbnail::open(const std::string inputFilename)
   MFCreateMediaType(&pMediaType);
   CHECK_HR(pMediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video), "Failed to set media mejor type.");
   CHECK_HR(pMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32), "Failed to set media sub type.");
-  CHECK_HR(pSourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, pMediaType.Get())
-    , "Failed to set current media type.");
+  CHECK_HR(pSourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, pMediaType.Get()), "Failed to set current media type.");
   CHECK_HR(pSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, true), "Failed to set stream selection.");
 
   CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
@@ -87,8 +86,7 @@ int OutputThumbnail::open(const std::string inputFilename)
   CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
   lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
   videoFormat.bTopDown = (lStride > 0);
-  CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator)
-    , "Failed to get attribute ratio.");
+  CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator), "Failed to get attribute ratio.");
   if (par.Denominator != par.Numerator)
   {
     RECT rcSrc = { 0, 0, (LONG)width, (LONG)height };
@@ -278,6 +276,7 @@ int OutputThumbnail::open(const std::string inputFilename)
           assert(cbBitmapData == (pitch * videoFormat.imageHeightPels));
 
           // Create Bitmap
+#if 0
           QGraphicsScene* scene = new QGraphicsScene();
           scene->setSceneRect(0, 0, 2, 2);
           QImage img(scene->sceneRect().size().toSize(), QImage::Format_RGB32);
@@ -285,6 +284,10 @@ int OutputThumbnail::open(const std::string inputFilename)
           scene->render(&painter);
 
           bool b = img.save("test.png");
+#else
+          QImage img((const unsigned char*)pBitmapData, videoFormat.imageWidthPels, videoFormat.imageHeightPels, QImage::Format_RGB32);
+          bool b = img.save("test.png");
+#endif
           
           if (!b)
           {
