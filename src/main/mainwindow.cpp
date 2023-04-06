@@ -1,4 +1,10 @@
 
+#include <QDir>
+#include <QFileDialog>
+#include <QString>
+#include <QSize>
+#include <QListWidget>
+
 #include "clipinfo.h"
 #include "clipinfodelegate.h"
 #include "mainwindow.h"
