@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include "clipinfo.h"
 #include "clipinfodelegate.h"
+#include "output_thumbnail.h"
 
 #include <QDir>
 #include <QFile>
@@ -45,7 +46,13 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
       }
       if (this->isMp4(info))
       {
-        ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName()));
+        OutputThumbnail ot;
+        ot.createAPI();
+        QImage thumbnail;
+        ot.open(info.absoluteFilePath().toStdString(), thumbnail);
+        QPixmap pixmap = QPixmap::fromImage(thumbnail);
+        ui.listWidgetMain->addItem(new ClipInfo(QIcon(pixmap), info.fileName()));
+        ot.destroyAPI();
       }
       else
       {

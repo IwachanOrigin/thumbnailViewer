@@ -15,15 +15,17 @@
 
 using namespace Microsoft::WRL;
 
+class QImage;
+
 class OutputThumbnail
 {
 
 struct FormatInfo
 {
-  UINT32          imageWidthPels;
-  UINT32          imageHeightPels;
-  BOOL            bTopDown;
-  RECT            rcPicture;    // Corrected for pixel aspect ratio
+  UINT32 imageWidthPels;
+  UINT32 imageHeightPels;
+  BOOL   bTopDown;
+  RECT   rcPicture;    // Corrected for pixel aspect ratio
 
   FormatInfo() : imageWidthPels(0), imageHeightPels(0), bTopDown(FALSE)
   {
@@ -35,7 +37,7 @@ public:
   explicit OutputThumbnail();
   ~OutputThumbnail();
 
-  int open(const std::string inputFilename);
+  int open(const std::string inputFilename, QImage& rtnImage);
 
   bool createAPI();
   void destroyAPI();

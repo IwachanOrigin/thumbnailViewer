@@ -15,7 +15,7 @@
 
 const LONGLONG SEEK_TOLERANCE = 10000000;
 const LONGLONG MAX_FRAMES_TO_SKIP = 10;
-const DWORD MAX_SPRITES = 4;
+const DWORD MAX_SPRITES = 1;
 
 #define SAMPLE_COUNT 100
 
@@ -27,7 +27,7 @@ OutputThumbnail::~OutputThumbnail()
 {
 }
 
-int OutputThumbnail::open(const std::string inputFilename)
+int OutputThumbnail::open(const std::string inputFilename, QImage& rtnImage)
 {
   HRESULT hr = S_OK;
   ComPtr<IMFMediaSource> mediaFileSource = nullptr;
@@ -54,13 +54,6 @@ int OutputThumbnail::open(const std::string inputFilename)
   ComPtr<IMFSample> pSample = nullptr;
   DWORD dwFlags = 0;
 
-  // Output bitmaps
-  ComPtr<IWICImagingFactory2> pWICFactory = nullptr;
-  ComPtr<IWICBitmapEncoder> pEncoder = nullptr;
-  ComPtr<IWICBitmapFrameEncode> pFrameEncode = nullptr;
-  ComPtr<IWICStream> pStream = nullptr;
-  ComPtr<IWICImageEncoder> imageEncoder = nullptr;
-
   // Init videoFormat
   FormatInfo videoFormat{};
   IMFMediaType* pType = NULL;
@@ -83,7 +76,7 @@ int OutputThumbnail::open(const std::string inputFilename)
   CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
   CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "");
 
-  CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
+  CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Failed to get frame size.");
   lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
   videoFormat.bTopDown = (lStride > 0);
   CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator), "Failed to get attribute ratio.");
@@ -276,33 +269,13 @@ int OutputThumbnail::open(const std::string inputFilename)
           assert(cbBitmapData == (pitch * videoFormat.imageHeightPels));
 
           // Create Bitmap
-#if 0
-          QGraphicsScene* scene = new QGraphicsScene();
-          scene->setSceneRect(0, 0, 2, 2);
-          QImage img(scene->sceneRect().size().toSize(), QImage::Format_RGB32);
-          QPainter painter(&img);
-          scene->render(&painter);
-
-          bool b = img.save("test.png");
-#else
           QImage img((const unsigned char*)pBitmapData, videoFormat.imageWidthPels, videoFormat.imageHeightPels, QImage::Format_RGB32);
-          bool b = img.save("test.png");
-#endif
-          
-          if (!b)
-          {
-            if (pBitmapData)
-            {
-              pBuffer->Unlock();
-            }
-          }
+          rtnImage = img;
+          //bool b = img.save("test.png");
 
-          if (FAILED(hr))
+          if (pBitmapData)
           {
-            if (pBitmapData)
-            {
-              pBuffer->Unlock();
-            }
+            pBuffer->Unlock();
           }
         }
         else
