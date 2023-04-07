@@ -5,6 +5,10 @@ set(main_src
   mainwindow.cpp
   starrating.h
   starrating.cpp
+  stareditor.h
+  stareditor.cpp
+  stardelegate.h
+  stardelegate.cpp
 )
 
 add_executable(
@@ -19,6 +23,8 @@ add_executable(
 # Link
 target_link_libraries(
   ${PROJECT_NAME}
+  Qt${QT_VERSION_MAJOR}::Core
+  Qt${QT_VERSION_MAJOR}::Gui
   Qt${QT_VERSION_MAJOR}::Widgets
 )
 

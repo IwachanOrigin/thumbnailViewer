@@ -27,7 +27,26 @@ void  sr::StarRating::paint(QPainter* painter, const QRect& rect, const QPalette
 {
   painter->save();
 
-  painter->setRenderHint(QPainter::antialiasing, true);
+  painter->setRenderHint(QPainter::Antialiasing, true);
+  painter->setPen(Qt::NoPen);
+  painter->setBrush(mode == EditMode::Editable ? palette.highlight() : palette.windowText());
+  const int yOffset = (rect.height() - PAINTING_SCALE_FACTOR) / 2;
+  painter->translate(rect.x(), rect.y() + yOffset);
+  painter->scale(PAINTING_SCALE_FACTOR, PAINTING_SCALE_FACTOR);
+
+  for (int i = 0; i < m_myMaxStarCount; i++)
+  {
+    if (i < m_myStarCount)
+    {
+      painter->drawPolygon(m_starPolygon, Qt::WindingFill);
+    }
+    else if (mode == EditMode::Editable)
+    {
+      painter->drawPolygon(m_diamondPolygon, Qt::WindingFill);
+    }
+    painter->translate(1.0f, 0.0f);
+  }
+  painter->restore();
 }
 
 QSize sr::StarRating::sizeHint() const
