@@ -18,6 +18,8 @@ protected:
 private:
     Ui::MainWindow ui;
 
+    void populateTableWidget();
+
 };
 
 #endif // MAIN_WINDOW_H_
