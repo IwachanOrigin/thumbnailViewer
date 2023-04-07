@@ -7,6 +7,9 @@ set(main_src
   main.cpp
   mainwindow.cpp
   mainwindow.h
+  MFUtility.h
+  output_thumbnail.cpp
+  output_thumbnail.h
 )
 
 add_executable(
