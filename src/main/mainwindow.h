@@ -5,25 +5,26 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_mainwindow.h"
 
-class QListWidgetItem;
+class QFileInfo;
 
 class MainWindow : public QMainWindow
 {
-    Q_OBJECT
+  Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = Q_NULLPTR);
+  MainWindow(QWidget *parent = Q_NULLPTR);
 
 protected:
-    void closeEvent(QCloseEvent* e);
+  void closeEvent(QCloseEvent* e);
 
 private:
-    Ui::MainWindow ui;
+  Ui::MainWindow ui;
 
-    void dirFilesInfo(const QString& dirpath);
+  void dirFilesInfo(const QString& dirpath);
+  bool isMp4(const QFileInfo& fileInfo);
 
 private slots:
-    void slotSelectDir();
+  void slotSelectDir();
 };
 
 #endif // MAIN_WINDOW_H_

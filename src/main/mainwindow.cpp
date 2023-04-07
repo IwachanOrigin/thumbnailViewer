@@ -1,13 +1,17 @@
 
-#include <QDir>
-#include <QFileDialog>
-#include <QString>
-#include <QSize>
-#include <QListWidget>
-
+#include "mainwindow.h"
 #include "clipinfo.h"
 #include "clipinfodelegate.h"
-#include "mainwindow.h"
+
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QListWidget>
+#include <QMimeDatabase>
+#include <QMimeType>
+#include <QSize>
+#include <QString>
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
@@ -39,9 +43,29 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
       {
         continue;
       }
-      ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName()));
+      if (this->isMp4(info))
+      {
+        ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName()));
+      }
+      else
+      {
+        ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName()));
+      }
     }
   }
+}
+
+bool MainWindow::isMp4(const QFileInfo& fileInfo)
+{
+  QMimeDatabase mimeDatabase;
+  QMimeType mimeType;
+
+  mimeType = mimeDatabase.mimeTypeForFile(fileInfo);
+
+  if (mimeType.inherits("video/mp4"))
+    return true;
+
+  return false;
 }
 
 void MainWindow::slotSelectDir()
