@@ -3,6 +3,8 @@ set(main_src
   main.cpp
   mainwindow.h
   mainwindow.cpp
+  starrating.h
+  starrating.cpp
 )
 
 add_executable(
