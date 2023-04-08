@@ -84,6 +84,7 @@ void MainWindow::slotSelectDir()
     ui.listWidgetMain->clear();
     QString dirName = dialog.directory().absolutePath();
     this->dirFilesInfo(dirName);
+    ui.plainTextEditFilePath->setPlainText(dirName);
   }
 }
 
