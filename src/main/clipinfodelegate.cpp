@@ -1,5 +1,6 @@
 
 #include "clipinfodelegate.h"
+#include <QDebug>
 
 ClipInfoDelegate::ClipInfoDelegate(QObject *parent)
   : QAbstractItemDelegate(parent)
@@ -27,6 +28,10 @@ void ClipInfoDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	QString name = index.data(Qt::DisplayRole).toString();
 	QString uuid = index.data(Qt::UserRole + 0).toString();
 
+	QPen fontPen(QColor::fromRgb(200, 200, 200), 1, Qt::SolidLine);
+	painter->setPen(fontPen);
+	painter->setFont(QFont("Lucida Grande", 11, QFont::Normal));
+
 	const int space = 5;
 	int iw = 0;
 	int ih = 0;
@@ -36,17 +41,18 @@ void ClipInfoDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		icon.paint(painter, r, Qt::AlignVCenter | Qt::AlignLeft);
 		iw = space + icon.actualSize(QSize(100, 64)).width() + space;
 		ih = space + icon.actualSize(QSize(100, 64)).height() + space;
+
+		r = option.rect.adjusted(space + iw, space + ((m_height / 3) * 1), -space, -((m_height / 3) * 1));
+		painter->drawText(r.left() + 100, r.top(), r.width(), r.height(), Qt::AlignLeft | Qt::AlignVCenter, name, &r);
 	}
-
-	QPen fontPen(QColor::fromRgb(200, 200, 200), 1, Qt::SolidLine);
-	painter->setPen(fontPen);
-	painter->setFont(QFont("Lucida Grande", 11, QFont::Normal));
-
-	r = option.rect.adjusted(space + iw, space + ((m_height / 3) * 1), -space, -((m_height / 3) * 1));
-	painter->drawText(r.left(), r.top(), r.width(), r.height(), Qt::AlignLeft | Qt::AlignVCenter, name, &r);
+	else
+	{
+		r = option.rect.adjusted(space + iw, space + ((m_height / 3) * 1), -space, -((m_height / 3) * 1));
+		painter->drawText(r.left(), r.top(), r.width(), r.height(), Qt::AlignLeft | Qt::AlignVCenter, name, &r);
+	}	
 }
 
-QSize ClipInfoDelegate::sizeHint(const QStyleOptionViewItem & option, const QModelIndex & index) const
+QSize ClipInfoDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
   return QSize(m_width, m_height);
 }
