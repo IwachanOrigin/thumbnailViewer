@@ -7,15 +7,16 @@
 class ClipInfo : public QListWidgetItem
 {
 public:
-  ClipInfo(const QString& clipName, QListWidget* parent = 0);
-  ClipInfo(const QIcon& icon, const QString& clipName, QListWidget* parent = 0);
+  ClipInfo(const QString& clipName, const QString& clipFullPath, QListWidget* parent = 0);
+  ClipInfo(const QIcon& icon, const QString& clipName, const QString& clipFullPath, QListWidget* parent = 0);
   virtual ~ClipInfo() = default;
 
   QString getClipName() const { return m_clipName; }
-  QString getClipFileName() const { return "ThisIsTheFullFilePathName"; }
+  QString getClipFileName() const { return m_clipFullPath; }
 
 private:
   QString m_clipName;
+  QString m_clipFullPath;
 };
 
 #endif

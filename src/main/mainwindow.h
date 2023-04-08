@@ -6,6 +6,7 @@
 #include "ui_mainwindow.h"
 
 class QFileInfo;
+class QListWidgetItem;
 
 class MainWindow : public QMainWindow
 {
@@ -25,6 +26,7 @@ private:
 
 private slots:
   void slotSelectDir();
+  void slotClipSelected(QListWidgetItem* item);
 };
 
 #endif // MAIN_WINDOW_H_

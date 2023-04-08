@@ -9,10 +9,12 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QMimeDatabase>
 #include <QMimeType>
 #include <QSize>
 #include <QString>
+#include <QToolButton>
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
@@ -24,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
   ui.listWidgetMain->setResizeMode(QListWidget::Adjust);
 
   QObject::connect(ui.toolButtonSearchDir, &QToolButton::pressed, this, &MainWindow::slotSelectDir);
-
+  QObject::connect(ui.listWidgetMain, &QListWidget::itemClicked, this, &MainWindow::slotClipSelected);
 }
 
 void MainWindow::closeEvent(QCloseEvent* e)
@@ -51,12 +53,12 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
         QImage thumbnail;
         ot.open(info.absoluteFilePath().toStdString(), thumbnail);
         QPixmap pixmap = QPixmap::fromImage(thumbnail);
-        ui.listWidgetMain->addItem(new ClipInfo(QIcon(pixmap), info.fileName()));
+        ui.listWidgetMain->addItem(new ClipInfo(QIcon(pixmap), info.fileName(), info.absoluteFilePath()));
         ot.destroyAPI();
       }
       else
       {
-        ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName()));
+        ui.listWidgetMain->addItem(new ClipInfo(QIcon(info.absoluteFilePath()), info.fileName(), info.absoluteFilePath()));
       }
     }
   }
@@ -88,4 +90,8 @@ void MainWindow::slotSelectDir()
   }
 }
 
-
+void MainWindow::slotClipSelected(QListWidgetItem* item)
+{
+  ClipInfo* clipInfo = static_cast<ClipInfo*>(item);
+  QMessageBox::information(this, clipInfo->getClipName(), clipInfo->getClipFileName());
+}
