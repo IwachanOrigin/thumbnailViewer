@@ -14,7 +14,9 @@
 #include <QMimeType>
 #include <QSize>
 #include <QString>
+#include <QTextStream>
 #include <QToolButton>
+#include <QDateTime>
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
@@ -93,5 +95,22 @@ void MainWindow::slotSelectDir()
 void MainWindow::slotClipSelected(QListWidgetItem* item)
 {
   ClipInfo* clipInfo = static_cast<ClipInfo*>(item);
-  QMessageBox::information(this, clipInfo->getClipName(), clipInfo->getClipFileName());
+  QFileInfo info(clipInfo->getClipFileName());
+  if (this->isMp4(info))
+  {
+    QMessageBox::information(this, clipInfo->getClipName(), clipInfo->getClipFileName());
+  }
+  else
+  {
+    QImage img(clipInfo->getClipFileName());
+    QString str = "";
+    QTextStream stream(&str);
+    stream << "width      : " << img.width() << Qt::endl;
+    stream << "height     : " << img.height() << Qt::endl;
+    stream << "depth      : " << img.depth() << Qt::endl;
+    stream << "size       : " << info.size() << Qt::endl;
+    stream << "birth date : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
+    stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
+    ui.labelInfomation->setText(str);
+  }
 }
