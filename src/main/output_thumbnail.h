@@ -37,7 +37,8 @@ public:
   explicit OutputThumbnail();
   ~OutputThumbnail();
 
-  int open(const std::string inputFilename, QImage& rtnImage);
+  int getThumbnail(const std::string inputFilename, QImage& rtnImage);
+  int getFileInfo(const std::string inputFilename, UINT32& width, UINT32& height, UINT32& bitrate, LONGLONG& duration);
 
   bool createAPI();
   void destroyAPI();

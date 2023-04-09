@@ -27,7 +27,7 @@ OutputThumbnail::~OutputThumbnail()
 {
 }
 
-int OutputThumbnail::open(const std::string inputFilename, QImage& rtnImage)
+int OutputThumbnail::getThumbnail(const std::string inputFilename, QImage& rtnImage)
 {
   HRESULT hr = S_OK;
   ComPtr<IMFMediaSource> mediaFileSource = nullptr;
@@ -184,8 +184,7 @@ int OutputThumbnail::open(const std::string inputFilename, QImage& rtnImage)
             CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
             lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
             videoFormat.bTopDown = (lStride > 0);
-            CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator)
-              , "Failed to get attribute ratio.");
+            CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator), "Failed to get attribute ratio.");
             if (par.Denominator != par.Numerator)
             {
               RECT rcSrc = { 0, 0, (LONG)width, (LONG)height };
@@ -292,6 +291,63 @@ done:
     pBuffer->Unlock();
   }
 
+  return hr;
+}
+
+int OutputThumbnail::getFileInfo(const std::string inputFilename, UINT32& width, UINT32& height, UINT32& bitrate, LONGLONG& duration)
+{
+  HRESULT hr = S_OK;
+  ComPtr<IMFMediaSource> mediaFileSource = nullptr;
+  ComPtr<IMFAttributes> pVideoReaderAttributes = nullptr;
+  ComPtr<IMFSourceReader> pSourceReader = nullptr;
+  ComPtr<IMFMediaType> pMediaType = nullptr;
+  MF_OBJECT_TYPE ObjectType = MF_OBJECT_INVALID;
+  LONG lStride = 0;
+  MFRatio par{};
+
+  // Init videoFormat
+  FormatInfo videoFormat{};
+  IMFMediaType* pType = NULL;
+  GUID subtype = { 0 };
+
+  wchar_t wfilename[256]{};
+  mbstowcs(wfilename, inputFilename.c_str(), sizeof(wfilename) / sizeof(wchar_t));
+
+  CHECK_HR(MFCreateAttributes(&pVideoReaderAttributes, 1), "Failed to create attributes object for video reader.");
+  CHECK_HR(pVideoReaderAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE), "Failed to set MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING.");
+
+  CHECK_HR(MFCreateSourceReaderFromURL(wfilename, pVideoReaderAttributes.Get(), &pSourceReader), "Failed to MFCreateSourceReaderFromURL.");
+
+  MFCreateMediaType(&pMediaType);
+  CHECK_HR(pMediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video), "Failed to set media mejor type.");
+  CHECK_HR(pMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32), "Failed to set media sub type.");
+  CHECK_HR(pSourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, pMediaType.Get()), "Failed to set current media type.");
+  CHECK_HR(pSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, true), "Failed to set stream selection.");
+  CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
+  CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "Failed to get subtype.");
+  CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Failed to get frame size.");
+  lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
+  videoFormat.bTopDown = (lStride > 0);
+  CHECK_HR(MFGetAttributeRatio(pType, MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator), "Failed to get attribute ratio.");
+  if (par.Denominator != par.Numerator)
+  {
+    RECT rcSrc = { 0, 0, (LONG)width, (LONG)height };
+    videoFormat.rcPicture = correctAspectRatio(rcSrc, par);
+  }
+  else
+  {
+    // Either the PAR is not set (assume 1:1), or the PAR is set to 1:1.
+    SetRect(&videoFormat.rcPicture, 0, 0, width, height);
+  }
+  CHECK_HR(this->getDuration(&duration, pSourceReader.Get()), "Failed to get duration.");
+  CHECK_HR(pMediaType->GetUINT32(MF_MT_AVG_BITRATE, &bitrate), "Failed to get bitrate.");
+
+done:
+  if (pType)
+  {
+    pType->Release();
+    pType = nullptr;
+  }
   return hr;
 }
 

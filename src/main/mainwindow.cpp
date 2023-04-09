@@ -53,7 +53,7 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
         OutputThumbnail ot;
         ot.createAPI();
         QImage thumbnail;
-        ot.open(info.absoluteFilePath().toStdString(), thumbnail);
+        ot.getThumbnail(info.absoluteFilePath().toStdString(), thumbnail);
         QPixmap pixmap = QPixmap::fromImage(thumbnail);
         ui.listWidgetMain->addItem(new ClipInfo(QIcon(pixmap), info.fileName(), info.absoluteFilePath()));
         ot.destroyAPI();
@@ -103,9 +103,16 @@ void MainWindow::slotClipSelected(QListWidgetItem* item)
   QTextStream stream(&str);
   if (this->isMp4(info))
   {
-    stream << "width          : " << "" << Qt::endl;
-    stream << "height         : " << "" << Qt::endl;
-    stream << "depth          : " << "" << Qt::endl;
+    UINT32 width = 0, height = 0, bitrate = 0;
+    LONGLONG duration = 0;
+    OutputThumbnail ot;
+    ot.createAPI();
+    ot.getFileInfo(info.absoluteFilePath().toStdString(), width, height, bitrate, duration);
+    ot.destroyAPI();
+    stream << "width          : " << width << Qt::endl;
+    stream << "height         : " << height << Qt::endl;
+    stream << "bitrate        : " << bitrate << Qt::endl;
+    stream << "duration       : " << duration << Qt::endl;
     stream << "size           : " << info.size() << Qt::endl;
     stream << "file type      : " << mimeType.preferredSuffix() << Qt::endl;
     stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
