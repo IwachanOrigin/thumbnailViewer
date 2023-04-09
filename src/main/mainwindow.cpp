@@ -102,14 +102,18 @@ void MainWindow::slotClipSelected(QListWidgetItem* item)
   }
   else
   {
+    QMimeDatabase mimeDatabase;
+    QMimeType mimeType;
+    mimeType = mimeDatabase.mimeTypeForFile(info);
     QImage img(clipInfo->getClipFileName());
     QString str = "";
     QTextStream stream(&str);
-    stream << "width      : " << img.width() << Qt::endl;
-    stream << "height     : " << img.height() << Qt::endl;
-    stream << "depth      : " << img.depth() << Qt::endl;
-    stream << "size       : " << info.size() << Qt::endl;
-    stream << "birth date : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
+    stream << "width          : " << img.width() << Qt::endl;
+    stream << "height         : " << img.height() << Qt::endl;
+    stream << "depth          : " << img.depth() << Qt::endl;
+    stream << "size           : " << info.size() << Qt::endl;
+    stream << "file type      : " << mimeType.preferredSuffix() << Qt::endl;
+    stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
     stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
     ui.labelInfomation->setText(str);
   }
