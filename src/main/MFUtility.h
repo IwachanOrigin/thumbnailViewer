@@ -440,7 +440,7 @@ HRESULT FindMatchingVideoType(IMFMediaTypeHandler* pMediaTypeHandler, const GUID
   CHECK_HR(pMediaTypeHandler->GetMediaTypeCount(&mediaTypeCount),
     "Failed to get sink media type count.");
 
-  for (int i = 0; i < mediaTypeCount; i++) {
+  for (int i = 0; i < (int)mediaTypeCount; i++) {
     IMFMediaType* pMediaType = NULL;
     CHECK_HR(pMediaTypeHandler->GetMediaTypeByIndex(i, &pMediaType), "Failed to get media type.");
 
@@ -480,7 +480,7 @@ HRESULT ListMediaTypes(IMFMediaTypeHandler* pMediaTypeHandler)
 
   std::cout << "Sink media type count: " << mediaTypeCount << "." << std::endl;
 
-  for (int i = 0; i < mediaTypeCount; i++) {
+  for (int i = 0; i < (int)mediaTypeCount; i++) {
     IMFMediaType* pMediaType = NULL;
     hr = pMediaTypeHandler->GetMediaTypeByIndex(i, &pMediaType);
     CHECK_HR(hr, "Failed to get media type.");
@@ -705,7 +705,7 @@ HRESULT ListAudioOutputDevices()
 
   std::cout << "Audio output device count " << deviceCount << "." << std::endl;
 
-  for (int i = 0; i < deviceCount; i++) {
+  for (UINT i = 0; i < deviceCount; i++) {
     LPWSTR wstrID = NULL;                   // Device ID.
 
     hr = pDevices->Item(i, &pDevice);
