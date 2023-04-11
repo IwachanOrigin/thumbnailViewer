@@ -18,6 +18,8 @@
 #include <QToolButton>
 #include <QDateTime>
 
+const unsigned int DURATION_BASE = 10000000;
+
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
 {
@@ -109,26 +111,26 @@ void MainWindow::slotClipSelected(QListWidgetItem* item)
     ot.createAPI();
     ot.getFileInfo(info.absoluteFilePath().toStdString(), width, height, bitrate, duration);
     ot.destroyAPI();
-    stream << "width          : " << width << Qt::endl;
-    stream << "height         : " << height << Qt::endl;
-    stream << "bitrate        : " << bitrate << Qt::endl;
-    stream << "duration       : " << duration << Qt::endl;
-    stream << "size           : " << info.size() << Qt::endl;
+    stream << "width          : " << width << " px" <<  Qt::endl;
+    stream << "height         : " << height << " px" << Qt::endl;
+    stream << "bitrate        : " << bitrate << " byte per sec" << Qt::endl;
+    stream << "duration       : " << (duration / DURATION_BASE) << " s" << Qt::endl;
+    stream << "size           : " << info.size() << " byte" << Qt::endl;
     stream << "file type      : " << mimeType.preferredSuffix() << Qt::endl;
-    stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
-    stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
+    stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss") << Qt::endl;
+    stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss") << Qt::endl;
     ui.labelInfomation->setText(str);
   }
   else
   {
     QImage img(clipInfo->getClipFileName());
-    stream << "width          : " << img.width() << Qt::endl;
-    stream << "height         : " << img.height() << Qt::endl;
+    stream << "width          : " << img.width() << " px" << Qt::endl;
+    stream << "height         : " << img.height() << " px" << Qt::endl;
     stream << "depth          : " << img.depth() << Qt::endl;
-    stream << "size           : " << info.size() << Qt::endl;
+    stream << "size           : " << info.size() << " byte" << Qt::endl;
     stream << "file type      : " << mimeType.preferredSuffix() << Qt::endl;
-    stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
-    stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss.zzz") << Qt::endl;
+    stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss") << Qt::endl;
+    stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss") << Qt::endl;
     ui.labelInfomation->setText(str);
   }
 }
