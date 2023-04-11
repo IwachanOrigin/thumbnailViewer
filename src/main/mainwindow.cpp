@@ -105,11 +105,11 @@ void MainWindow::slotClipSelected(QListWidgetItem* item)
   QTextStream stream(&str);
   if (this->isMp4(info))
   {
-    UINT32 width = 0, height = 0, bitrate = 0;
+    UINT32 width = 0, height = 0, bitrate = 0, channelCount = 0, samplesPerSec = 0, bitsPerSample = 0;
     LONGLONG duration = 0;
     OutputThumbnail ot;
     ot.createAPI();
-    ot.getFileInfo(info.absoluteFilePath().toStdString(), width, height, bitrate, duration);
+    ot.getFileInfo(info.absoluteFilePath().toStdString(), width, height, bitrate, duration, channelCount, samplesPerSec, bitsPerSample);
     ot.destroyAPI();
     stream << "width          : " << width << " px" <<  Qt::endl;
     stream << "height         : " << height << " px" << Qt::endl;
@@ -117,6 +117,8 @@ void MainWindow::slotClipSelected(QListWidgetItem* item)
     stream << "duration       : " << (duration / DURATION_BASE) << " s" << Qt::endl;
     stream << "size           : " << info.size() << " byte" << Qt::endl;
     stream << "file type      : " << mimeType.preferredSuffix() << Qt::endl;
+    stream << "audio channels : " << channelCount << " channels" << Qt::endl;
+    stream << "sampling rate  : " << samplesPerSec << " Hz" << Qt::endl;
     stream << "birth date     : " << info.birthTime().toString("yyyy/MM/dd hh:mm:ss") << Qt::endl;
     stream << "last modifiyed : " << info.lastModified().toString("yyyy/MM/dd hh:mm:ss") << Qt::endl;
     ui.labelInfomation->setText(str);

@@ -298,7 +298,7 @@ done:
   return hr;
 }
 
-int OutputThumbnail::getFileInfo(const std::string inputFilename, UINT32& width, UINT32& height, UINT32& bitrate, LONGLONG& duration)
+int OutputThumbnail::getFileInfo(const std::string inputFilename, UINT32& width, UINT32& height, UINT32& bitrate, LONGLONG& duration, UINT32& channelCount, UINT32& samplesPerSec, UINT32& bitsPerSample)
 {
   HRESULT hr = S_OK;
   ComPtr<IMFSourceResolver> pSourceResolver = nullptr;
@@ -338,6 +338,16 @@ int OutputThumbnail::getFileInfo(const std::string inputFilename, UINT32& width,
       CHECK_HR(MFCreateSourceReaderFromURL(wfilename, nullptr, &pSourceReader), "Failed to MFCreateSourceReaderFromURL.");
       CHECK_HR(this->getDuration(&duration, pSourceReader.Get()), "Failed to get duration.");
       break;
+    }
+    else if (majorType == MFMediaType_Audio)
+    {
+      channelCount = 0;
+      samplesPerSec = 0;
+      bitsPerSample = 0;
+      CHECK_HR(pMediaTypeHandler->GetCurrentMediaType(&pMediaType), "Failed to get current media type.");
+      channelCount = MFGetAttributeUINT32(pMediaType.Get(), MF_MT_AUDIO_NUM_CHANNELS, 0);
+      samplesPerSec = MFGetAttributeUINT32(pMediaType.Get(), MF_MT_AUDIO_SAMPLES_PER_SECOND, 0);
+      bitsPerSample = MFGetAttributeUINT32(pMediaType.Get(), MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
     }
   }
 
