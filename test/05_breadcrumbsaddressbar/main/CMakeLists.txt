@@ -3,6 +3,8 @@ set(main_src
   main.cpp
   mainwindow.h
   mainwindow.cpp
+  filenamemodel.h
+  filenamemodel.cpp
 )
 
 add_executable(
