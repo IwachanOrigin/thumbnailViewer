@@ -210,7 +210,7 @@ int OutputThumbnail::open(const std::string inputFilename)
             IMFMediaType* pType = NULL;
             GUID subtype = { 0 };
             CHECK_HR(pSourceReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &pType), "Failed to get current media type.");
-            CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "");
+            CHECK_HR(pType->GetGUID(MF_MT_SUBTYPE, &subtype), "Failed to get subtype.");
 
             CHECK_HR(MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height), "Faile to get frame size.");
             lStride = (LONG)MFGetAttributeUINT32(pType, MF_MT_DEFAULT_STRIDE, 1);
