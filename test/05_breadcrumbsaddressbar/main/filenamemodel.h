@@ -13,7 +13,7 @@
 class FilenameModel : public QStringListModel
 {
 public:
-  explicit FilenameModel(const QStringList& strings, QObject* parent = nullptr);
+  explicit FilenameModel(const QStringList& strings, const bool isDir = false, QObject* parent = nullptr);
   virtual ~FilenameModel();
 
   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -22,10 +22,8 @@ public:
   QStringList getFileList(const QString& path);
 
 private:
-  QStringList sortPaths(QStringList& paths);
-  void setPathPrefix();
-
   QFileIconProvider m_fileIconProvider;
+  bool m_isDir;
 };
 
 #endif // FILE_NAME_MODEL_H_

@@ -1,8 +1,11 @@
 
 #include "filenamemodel.h"
 
-FilenameModel::FilenameModel(const QStringList& strings, QObject* parent)
+#include <QDir>
+
+FilenameModel::FilenameModel(const QStringList& strings, const bool isDir, QObject* parent)
   : QStringListModel(strings, parent)
+  , m_isDir(isDir)
 {
 }
 
@@ -22,7 +25,7 @@ QVariant FilenameModel::data(const QModelIndex& index, int role) const
 
   if (role == Qt::DisplayRole)
   {
-    // return file path
+    return defaultValue.toString();
   }
 
   return defaultValue;
@@ -35,16 +38,23 @@ QIcon FilenameModel::getIcon(const QString& path) const
 
 QStringList FilenameModel::getFileList(const QString& path)
 {
-  
+  QDir dir(path);
+  QDir::Filters filter;
+  if (m_isDir)
+  {
+    filter = dir.Dirs;
+  }
+  else
+  {
+    filter = dir.AllEntries;
+  }
+  dir.setFilter(dir.NoDotAndDotDot | dir.Hidden | filter);
+  QStringList names = dir.entryList(dir.NoFilter, dir.DirsFirst | dir.LocaleAware);
+  QStringList retList;
+  for (auto i : names)
+  {
+    retList.push_back(path + "/" +  i);
+  }
+  return retList;
 }
 
-
-QStringList FilenameModel::sortPaths(QStringList& paths)
-{
-  
-}
-
-void FilenameModel::setPathPrefix()
-{
-  
-}

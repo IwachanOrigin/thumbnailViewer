@@ -23,8 +23,6 @@ MenuListView::MenuListView(QWidget* parent)
   m_widgetAction->setDefaultWidget(&m_listView);
   this->addAction(m_widgetAction);
 
-  // QMenu -> QListView Signal - slot
-
   m_listView.setMouseTracking(true);
   m_listView.setFocusPolicy(Qt::NoFocus);
   m_listView.setFocus();
