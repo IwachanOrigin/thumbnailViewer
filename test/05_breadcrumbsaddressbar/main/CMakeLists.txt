@@ -1,10 +1,18 @@
 
 set(main_src
-  main.cpp
-  mainwindow.h
-  mainwindow.cpp
-  filenamemodel.h
+  breadcrumbsaddressbar.cpp
+  breadcrumbsaddressbar.h
+  breadcrumbslayout.cpp
+  breadcrumbslayout.h
   filenamemodel.cpp
+  filenamemodel.h
+  main.cpp
+  mainwindow.cpp
+  mainwindow.h
+  menulistview.cpp
+  menulistview.h
+  styleproxy.cpp
+  styleproxy.h
 )
 
 add_executable(
