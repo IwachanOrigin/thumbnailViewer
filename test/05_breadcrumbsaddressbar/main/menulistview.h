@@ -7,6 +7,7 @@
 #include <QPalette>
 #include <QWidgetAction>
 #include <QModelIndex>
+#include <QPoint>
 
 class MenuListView : public QMenu
 {
@@ -31,6 +32,8 @@ private:
   QWidgetAction* m_widgetAction;
   bool m_mouseLeftPressed;
   QModelIndex m_lastIndex;
+
+  void updateCurrentIndex(const QPoint& point);
 };
 
 #endif // MENU_LIST_VIEW_H_

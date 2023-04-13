@@ -2,6 +2,10 @@
 #include "menulistview.h"
 
 #include <QScrollBar>
+#include <QEvent>
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QAbstractItemModel>
 
 constexpr int MAX_VISIBLE_ITEMS = 16;
 
@@ -46,25 +50,105 @@ QSize	MenuListView::sizeHint() const
 
 void MenuListView::keyPressEvent(QKeyEvent* e)
 {
-  
+  int key = e->key();
+  switch (key)
+  {
+  case Qt::Key_Return:
+  case Qt::Key_Enter:
+  {
+    if (m_lastIndex.isValid())
+    {
+      emit m_listView.activated(m_lastIndex);
+    }
+    this->close();
+  }
+  break;
+
+  case Qt::Key_Escape:
+  {
+    this->close();
+  }
+  break;
+
+  case Qt::Key_Down:
+  case Qt::Key_Up:
+  {
+    auto model = m_listView.model();
+    int rowFrom = 0;
+    int rowTo = model->rowCount() - 1;
+    if (key == Qt::Key_Down)
+    {
+      int wk = rowFrom;
+      rowFrom = rowTo;
+      rowTo = wk;
+    }
+
+    QModelIndex index;
+    bool findCheck = false;
+    for (int i = -1; i <= rowFrom; i++)
+    {
+      if (i == m_lastIndex.row())
+      {
+        index = model->index(rowTo, 0);
+        findCheck = true;
+        break;
+      }
+    }
+
+    if (!findCheck)
+    {
+      int shift = 1;
+      if (key != Qt::Key_Down)
+      {
+        shift = -1;
+      }
+      index = model->index(m_lastIndex.row() + shift, 0);
+    }
+
+    m_listView.setCurrentIndex(index);
+    m_lastIndex = index;
+  }
+  break;
+
+  }
 }
 
 void MenuListView::leaveEvent(QEvent* e)
 {
-  
+  m_listView.clearSelection();
+  m_listView.setCurrentIndex(QModelIndex());
+  m_lastIndex = QModelIndex();
 }
 
 void MenuListView::mouseMoveEvent(QMouseEvent* e)
 {
-  
+  this->updateCurrentIndex(e->pos());
 }
 
 void MenuListView::mousePressEvent(QMouseEvent* e)
 {
-  
+  if (e->button() == Qt::LeftButton)
+  {
+    m_mouseLeftPressed = true;
+    this->updateCurrentIndex(e->pos());
+  }
 }
 
 void MenuListView::mouseReleaseEvent(QMouseEvent* e)
 {
-  
+  if (e->button() == Qt::LeftButton && m_mouseLeftPressed)
+  {
+    m_mouseLeftPressed = false;
+    if (m_lastIndex.isValid())
+    {
+      emit m_listView.clicked(m_lastIndex);
+    }
+    this->close();
+  }
+}
+
+void MenuListView::updateCurrentIndex(const QPoint& point)
+{
+  m_lastIndex = m_listView.indexAt(point);
+  m_listView.setCurrentIndex(m_lastIndex);
 }
