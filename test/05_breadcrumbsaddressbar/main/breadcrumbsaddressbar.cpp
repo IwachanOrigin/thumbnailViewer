@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QTimer>
 #include <QMenu>
+#include <QAbstractItemView>
 #include <QApplication>
 
 const QSize TRANSPARENT_ICON_SIZE = QSize(40, 40);
@@ -25,6 +26,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   , m_btnBrowse(new QToolButton(this))
   , m_ignoreRaise(false)
   , m_path("")
+  , m_completer(nullptr)
 {
   m_styleProxy = new StyleProxy(QPixmap(":/icons/assets/arrow-right_128x128.png"), QStyleFactory::create(qApp->style()->objectName()));
 
@@ -39,12 +41,12 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   auto pathIcon = new QLabel(this);
   m_layout->addWidget(pathIcon);
 
-  auto lineAddress = new QLineEdit(this);
-  lineAddress->setFrame(false);
-  lineAddress->hide();
-  m_layout->addWidget(lineAddress);
+  m_lineAddress = new QLineEdit(this);
+  m_lineAddress->setFrame(false);
+  m_lineAddress->hide();
+  m_layout->addWidget(m_lineAddress);
 
-  //auto completer =
+  this->initCompleter(m_filenameModel, m_lineAddress);
 
   auto crumbsContainer = new QWidget(this);
   auto crumbsContainerLayout = new QHBoxLayout(crumbsContainer);
@@ -76,7 +78,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   m_btnBrowse->setToolTip("Browse for folder");
   m_layout->addWidget(m_btnBrowse);
 
-  this->setMaximumHeight(lineAddress->height());
+  this->setMaximumHeight(m_lineAddress->height());
 }
 
 BreadCrumbsAddressBar::~BreadCrumbsAddressBar()
@@ -86,4 +88,43 @@ BreadCrumbsAddressBar::~BreadCrumbsAddressBar()
     delete m_styleProxy;
     m_styleProxy = nullptr;
   }
+}
+
+void BreadCrumbsAddressBar::keyPressEvent(QKeyEvent* event)
+{
+  
+}
+
+void BreadCrumbsAddressBar::focusOutEvent(QFocusEvent* event)
+{
+  
+}
+
+void BreadCrumbsAddressBar::contextMenuEvent(QContextMenuEvent* event)
+{
+  
+}
+
+void BreadCrumbsAddressBar::mouseReleaseEvent(QMouseEvent* event)
+{
+  
+}
+
+void BreadCrumbsAddressBar::initCompleter(FilenameModel* model, QLineEdit* lineAddress)
+{
+  m_completer = new QCompleter(lineAddress);
+  m_completer->setCaseSensitivity(Qt::CaseInsensitive);
+  m_completer->setModel(model);
+  lineAddress->setCompleter(m_completer);
+}
+
+void BreadCrumbsAddressBar::eventConnect()
+{
+  QObject::connect(m_lineAddress, &QLineEdit::textEdited, m_filenameModel, &FilenameModel::setPathPrefix);
+  
+}
+
+void BreadCrumbsAddressBar::eventDisconnect()
+{
+  
 }

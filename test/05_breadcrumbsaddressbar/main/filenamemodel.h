@@ -19,6 +19,8 @@ public:
   QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
   QIcon getIcon(const QString& path) const;
+
+public slots:
   void setPathPrefix(const QString& prefix);
 
 private:
