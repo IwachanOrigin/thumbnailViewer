@@ -19,7 +19,10 @@ public:
 
   QIcon getIcon(const QString& path);
   QStringList getFileList(const QString& path);
-  
+
+private:
+  QStringList sortPaths(QStringList& paths);
+  void setPathPrefix();
 };
 
 #endif // FILE_NAME_MODEL_H_
