@@ -2,10 +2,12 @@
 #include "filenamemodel.h"
 
 #include <QDir>
+#include <QFileInfo>
 
 FilenameModel::FilenameModel(const QStringList& strings, const bool isDir, QObject* parent)
   : QStringListModel(strings, parent)
   , m_isDir(isDir)
+  , m_currentPath("")
 {
 }
 
@@ -58,3 +60,26 @@ QStringList FilenameModel::getFileList(const QString& path)
   return retList;
 }
 
+void FilenameModel::setPathPrefix(const QString& prefix)
+{
+  QString path = prefix;
+  QFileInfo fileInfo(prefix);
+  if (fileInfo.isFile())
+  {
+    path = fileInfo.absoluteDir().absolutePath();
+  }
+
+  if (path == m_currentPath)
+  {
+    return;
+  }
+
+  QFileInfo fileInfo2(path);
+  if (!fileInfo2.exists())
+  {
+    return;
+  }
+
+  this->setStringList(this->getFileList(path));
+  m_currentPath = path;
+}
