@@ -16,6 +16,10 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QWidget>
+#include <QMenu>
+#include <QVector>
+#include <QAction>
+#include <QIcon>
 
 class StyleProxy;
 class FilenameModel;
@@ -31,7 +35,7 @@ protected:
   void focusOutEvent(QFocusEvent* event) override;
   void contextMenuEvent(QContextMenuEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
-  
+
 private:
   bool m_ignoreRaise;
   FilenameModel* m_filenameModel;
@@ -42,12 +46,24 @@ private:
   QTimer* m_mousePosTimer;
   QToolButton* m_btnBrowse;
   QWidget* m_switchSpace;
+  QWidget* m_crumbsContainer;
+  QWidget* m_crumbsPanel;
   StyleProxy* m_styleProxy;
   QLineEdit* m_lineAddress;
+  QMenu* m_menu;
+  bool m_lineAddressIsContextMenu;
+  QVector<QAction*> m_actionsHiddenCrumbs;
 
   void initCompleter(FilenameModel* model, QLineEdit* lineAddress);
+  void cancelEdit();
+  void showAddressField(const bool show);
   void eventConnect();
   void eventDisconnect();
+  void setPath();
+  QIcon getIcon(const QString path);
+
+private slots:
+  void hiddenCrumbsMenuShow();
 };
 
 #endif // BREAD_CRUMBS_ADDRESS_BAR_H_

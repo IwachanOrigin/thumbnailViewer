@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <QMenu>
 #include <QAbstractItemView>
+#include <QPainter>
 #include <QApplication>
 
 const QSize TRANSPARENT_ICON_SIZE = QSize(40, 40);
@@ -27,6 +28,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   , m_ignoreRaise(false)
   , m_path("")
   , m_completer(nullptr)
+  , m_lineAddressIsContextMenu(false)
 {
   m_styleProxy = new StyleProxy(QPixmap(":/icons/assets/arrow-right_128x128.png"), QStyleFactory::create(qApp->style()->objectName()));
 
@@ -48,11 +50,11 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
 
   this->initCompleter(m_filenameModel, m_lineAddress);
 
-  auto crumbsContainer = new QWidget(this);
-  auto crumbsContainerLayout = new QHBoxLayout(crumbsContainer);
+  m_crumbsContainer = new QWidget(this);
+  auto crumbsContainerLayout = new QHBoxLayout(m_crumbsContainer);
   crumbsContainerLayout->setContentsMargins(0, 0, 0, 0);
   crumbsContainerLayout->setSpacing(0);
-  m_layout->addWidget(crumbsContainer);
+  m_layout->addWidget(m_crumbsContainer);
 
   auto btnRootCrumb = new QToolButton(this);
   btnRootCrumb->setAutoRaise(true);
@@ -62,14 +64,14 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   btnRootCrumb->setMinimumSize(btnRootCrumb->minimumSizeHint());
   crumbsContainerLayout->addWidget(btnRootCrumb);
 
-  auto menu = new QMenu(btnRootCrumb);
-  btnRootCrumb->setMenu(menu);
+  m_menu = new QMenu(btnRootCrumb);
+  btnRootCrumb->setMenu(m_menu);
 
-  auto crumbsPanel = new QWidget(this);
-  auto crumbsLayout = new LeftHBoxLayout(crumbsPanel);
+  m_crumbsPanel = new QWidget(this);
+  auto crumbsLayout = new LeftHBoxLayout(m_crumbsPanel);
   crumbsLayout->setContentsMargins(0, 0, 0, 0);
   crumbsLayout->setSpacing(0);
-  crumbsContainerLayout->addWidget(crumbsPanel);
+  crumbsContainerLayout->addWidget(m_crumbsPanel);
 
   crumbsLayout->setSpaceWidget(m_switchSpace);
 
@@ -92,17 +94,37 @@ BreadCrumbsAddressBar::~BreadCrumbsAddressBar()
 
 void BreadCrumbsAddressBar::keyPressEvent(QKeyEvent* event)
 {
-  
+  switch(event->key())
+  {
+  case Qt::Key_Escape:
+  {
+    this->cancelEdit();
+  }
+  break;
+
+  case Qt::Key_Return:
+  case Qt::Key_Enter:
+  {
+    // 
+    this->showAddressField(false);
+  }
+  break;
+
+  }
 }
 
 void BreadCrumbsAddressBar::focusOutEvent(QFocusEvent* event)
 {
-  
+  if (m_lineAddressIsContextMenu)
+  {
+    m_lineAddressIsContextMenu = false;
+    this->cancelEdit();
+  }
 }
 
 void BreadCrumbsAddressBar::contextMenuEvent(QContextMenuEvent* event)
 {
-  
+  m_lineAddressIsContextMenu = true;
 }
 
 void BreadCrumbsAddressBar::mouseReleaseEvent(QMouseEvent* event)
@@ -118,6 +140,55 @@ void BreadCrumbsAddressBar::initCompleter(FilenameModel* model, QLineEdit* lineA
   lineAddress->setCompleter(m_completer);
 }
 
+void BreadCrumbsAddressBar::cancelEdit()
+{
+  m_lineAddress->setText(m_path);
+  this->showAddressField(false);
+}
+
+void BreadCrumbsAddressBar::showAddressField(const bool show)
+{
+  if (show)
+  {
+    m_crumbsContainer->hide();
+    m_lineAddress->show();
+    m_lineAddress->setFocus();
+    m_lineAddress->selectAll();
+  }
+  else
+  {
+    m_lineAddress->hide();
+    m_crumbsContainer->show();
+  }
+}
+
+void BreadCrumbsAddressBar::hiddenCrumbsMenuShow()
+{
+  if (!m_mousePosTimer)
+  {
+    return;
+  }
+  m_mousePosTimer->start(100);
+  // QObject::sender is 
+  auto menu = qobject_cast<QMenu*>(this->sender());
+  if (!m_actionsHiddenCrumbs.isEmpty())
+  {
+    for (auto i : m_actionsHiddenCrumbs)
+    {
+      menu->removeAction(i);
+    }
+    m_actionsHiddenCrumbs.clear();
+  }
+
+  auto firstAction = menu->actions()[0];
+  
+}
+
+void BreadCrumbsAddressBar::setPath()
+{
+  
+}
+
 void BreadCrumbsAddressBar::eventConnect()
 {
   QObject::connect(m_lineAddress, &QLineEdit::textEdited, m_filenameModel, &FilenameModel::setPathPrefix);
@@ -127,4 +198,19 @@ void BreadCrumbsAddressBar::eventConnect()
 void BreadCrumbsAddressBar::eventDisconnect()
 {
   
+}
+
+QIcon BreadCrumbsAddressBar::getIcon(const QString path)
+{
+  QFileInfo fileinfo(path);
+  auto icon = m_iconProvider->icon(fileinfo);
+  if (fileinfo.isHidden())
+  {
+    auto pixmap = new QPixmap(TRANSPARENT_ICON_SIZE);
+    pixmap->fill(Qt::transparent);
+    auto painter = new QPainter(pixmap);
+    painter->setOpacity(0.5);
+    //icon.paint(painter, 0, 0, TRANSPARENT_ICON_SIZE);
+    
+  }
 }
