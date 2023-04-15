@@ -13,19 +13,23 @@ MenuListView::MenuListView(QWidget* parent)
   : QMenu(parent)
   , m_mouseLeftPressed(false)
 {
-  m_listView.setFrameShape(m_listView.NoFrame);
-  m_listView.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  m_palette = m_listView.palette();
+  m_listView = new QListView(this);
+  m_listView->setFrameShape(QFrame::NoFrame);
+  m_listView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  m_palette = m_listView->palette();
   m_palette.setColor(m_palette.Base, this->palette().color(m_palette.Window));
-  m_listView.setPalette(m_palette);
+  m_listView->setPalette(m_palette);
 
   m_widgetAction = new QWidgetAction(this);
-  m_widgetAction->setDefaultWidget(&m_listView);
+  m_widgetAction->setDefaultWidget(m_listView);
   this->addAction(m_widgetAction);
 
-  m_listView.setMouseTracking(true);
-  m_listView.setFocusPolicy(Qt::NoFocus);
-  m_listView.setFocus();
+  m_listView->setMouseTracking(true);
+  m_listView->setFocusPolicy(Qt::NoFocus);
+  m_listView->setFocus();
+
+  QObject::connect(m_listView, &QListView::activated, this, &MenuListView::activated);
+  QObject::connect(m_listView, &QListView::clicked, this, &MenuListView::clicked);
 }
 
 MenuListView::~MenuListView()
@@ -39,11 +43,16 @@ MenuListView::~MenuListView()
 
 QSize	MenuListView::sizeHint() const
 {
-  int width = m_listView.sizeHintForColumn(0);
-  width += m_listView.verticalScrollBar()->sizeHint().width();
+  int width = m_listView->sizeHintForColumn(0);
+  width += m_listView->verticalScrollBar()->sizeHint().width();
 
-  int visibleRows = std::min(MAX_VISIBLE_ITEMS, m_listView.model()->rowCount());
-  return QSize(width, visibleRows * m_listView.sizeHintForRow(0));
+  int visibleRows = std::min(MAX_VISIBLE_ITEMS, m_listView->model()->rowCount());
+  return QSize(width, visibleRows * m_listView->sizeHintForRow(0));
+}
+
+void MenuListView::setModel(QAbstractItemModel* model)
+{
+  m_listView->setModel(model);
 }
 
 void MenuListView::keyPressEvent(QKeyEvent* e)
@@ -56,7 +65,7 @@ void MenuListView::keyPressEvent(QKeyEvent* e)
   {
     if (m_lastIndex.isValid())
     {
-      emit m_listView.activated(m_lastIndex);
+      emit activated(m_lastIndex);
     }
     this->close();
   }
@@ -71,7 +80,7 @@ void MenuListView::keyPressEvent(QKeyEvent* e)
   case Qt::Key_Down:
   case Qt::Key_Up:
   {
-    auto model = m_listView.model();
+    auto model = m_listView->model();
     int rowFrom = 0;
     int rowTo = model->rowCount() - 1;
     if (key == Qt::Key_Down)
@@ -103,7 +112,7 @@ void MenuListView::keyPressEvent(QKeyEvent* e)
       index = model->index(m_lastIndex.row() + shift, 0);
     }
 
-    m_listView.setCurrentIndex(index);
+    m_listView->setCurrentIndex(index);
     m_lastIndex = index;
   }
   break;
@@ -113,8 +122,8 @@ void MenuListView::keyPressEvent(QKeyEvent* e)
 
 void MenuListView::leaveEvent(QEvent* e)
 {
-  m_listView.clearSelection();
-  m_listView.setCurrentIndex(QModelIndex());
+  m_listView->clearSelection();
+  m_listView->setCurrentIndex(QModelIndex());
   m_lastIndex = QModelIndex();
 }
 
@@ -139,7 +148,7 @@ void MenuListView::mouseReleaseEvent(QMouseEvent* e)
     m_mouseLeftPressed = false;
     if (m_lastIndex.isValid())
     {
-      emit m_listView.clicked(m_lastIndex);
+      emit clicked(m_lastIndex);
     }
     this->close();
   }
@@ -147,6 +156,6 @@ void MenuListView::mouseReleaseEvent(QMouseEvent* e)
 
 void MenuListView::updateCurrentIndex(const QPoint& point)
 {
-  m_lastIndex = m_listView.indexAt(point);
-  m_listView.setCurrentIndex(m_lastIndex);
+  m_lastIndex = m_listView->indexAt(point);
+  m_listView->setCurrentIndex(m_lastIndex);
 }

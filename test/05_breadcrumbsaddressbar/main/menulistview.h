@@ -18,6 +18,7 @@ public:
   virtual ~MenuListView();
 
   QSize	sizeHint() const override;
+  void setModel(QAbstractItemModel* model);
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
@@ -27,13 +28,17 @@ protected:
   void mouseReleaseEvent(QMouseEvent* e) override;
 
 private:
-  QListView m_listView;
+  QListView* m_listView;
   QPalette m_palette;
   QWidgetAction* m_widgetAction;
   bool m_mouseLeftPressed;
   QModelIndex m_lastIndex;
 
   void updateCurrentIndex(const QPoint& point);
+
+signals:
+  void activated(const QModelIndex& index);
+  void clicked(const QModelIndex& index);
 };
 
 #endif // MENU_LIST_VIEW_H_

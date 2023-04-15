@@ -55,15 +55,20 @@ private:
   QVector<QAction*> m_actionsHiddenCrumbs;
 
   void initCompleter(FilenameModel* model, QLineEdit* lineAddress);
+  void initRootMenuPlaces(QMenu* menu);
   void cancelEdit();
   void showAddressField(const bool show);
   void eventConnect();
   void eventDisconnect();
-  void setPath();
   QIcon getIcon(const QString path);
+  void clearCrumbs();
+  void insertCrumbs(const QString& path);
 
 private slots:
   void hiddenCrumbsMenuShow();
+  void setPath(const QString& path = QString());
+  void slotCrumbClicked();
+  void slotCrumbMenuShow();
 };
 
 #endif // BREAD_CRUMBS_ADDRESS_BAR_H_
