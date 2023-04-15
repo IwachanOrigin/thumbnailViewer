@@ -148,7 +148,14 @@ void BreadCrumbsAddressBar::initCompleter(FilenameModel* model, QLineEdit* lineA
   m_completer = new QCompleter(lineAddress);
   m_completer->setCaseSensitivity(Qt::CaseInsensitive);
   m_completer->setModel(model);
+  auto popup = qobject_cast<QListView*>(m_completer->popup());
+  if (popup)
+  {
+    popup->setUniformItemSizes(true);
+    popup->setLayoutMode(QListView::Batched);
+  }
   lineAddress->setCompleter(m_completer);
+  QObject::connect(lineAddress, &QLineEdit::textEdited, model, &FilenameModel::setPathPrefix);
 }
 
 void BreadCrumbsAddressBar::cancelEdit()
@@ -313,7 +320,7 @@ void BreadCrumbsAddressBar::eventDisconnect()
   
 }
 
-QIcon BreadCrumbsAddressBar::getIcon(const QString path)
+QIcon BreadCrumbsAddressBar::getIcon(const QString& path)
 {
   QFileInfo fileinfo(path);
   auto icon = m_iconProvider->icon(fileinfo);

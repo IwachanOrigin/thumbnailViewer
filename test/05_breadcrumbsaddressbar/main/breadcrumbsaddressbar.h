@@ -62,7 +62,7 @@ private:
   void showAddressField(const bool show);
   void eventConnect();
   void eventDisconnect();
-  QIcon getIcon(const QString path);
+  QIcon getIcon(const QString& path);
   void clearCrumbs();
   void insertCrumbs(const QString& path);
 
