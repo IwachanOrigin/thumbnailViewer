@@ -6,6 +6,7 @@
 #include "breadcrumbslayout.h"
 
 #include <QSize>
+#include <QSizePolicy>
 #include <QStyleFactory>
 #include <QLabel>
 #include <QLineEdit>
@@ -17,6 +18,8 @@
 #include <QDir>
 #include <QToolButton>
 #include <QApplication>
+
+#include <filesystem>
 
 const QSize TRANSPARENT_ICON_SIZE = QSize(40, 40);
 
@@ -44,8 +47,8 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   this->layout()->setContentsMargins(4, 0, 0, 0);
   this->layout()->setSpacing(0);
 
-  auto pathIcon = new QLabel(this);
-  m_layout->addWidget(pathIcon);
+  m_pathIcon = new QLabel(this);
+  m_layout->addWidget(m_pathIcon);
 
   m_lineAddress = new QLineEdit(this);
   m_lineAddress->setFrame(false);
@@ -133,7 +136,11 @@ void BreadCrumbsAddressBar::contextMenuEvent(QContextMenuEvent* event)
 
 void BreadCrumbsAddressBar::mouseReleaseEvent(QMouseEvent* event)
 {
-  
+  if (event->button() != Qt::LeftButton)
+  {
+    return;
+  }
+  this->showAddressField(true);
 }
 
 void BreadCrumbsAddressBar::initCompleter(FilenameModel* model, QLineEdit* lineAddress)
@@ -196,8 +203,13 @@ void BreadCrumbsAddressBar::hiddenCrumbsMenuShow()
     return;
   }
   m_mousePosTimer->start(100);
-  // QObject::sender is 
+  // QObject::sender retrieves the object that issued the signal immediately before.
   auto menu = qobject_cast<QMenu*>(this->sender());
+  if (!menu)
+  {
+    return;
+  }
+
   if (!m_actionsHiddenCrumbs.isEmpty())
   {
     for (auto i : m_actionsHiddenCrumbs)
@@ -207,22 +219,37 @@ void BreadCrumbsAddressBar::hiddenCrumbsMenuShow()
     m_actionsHiddenCrumbs.clear();
   }
 
-  auto firstAction = menu->actions()[0];
+  auto actions = menu->actions();
+  auto firstAction = actions.at(0);
   for (int i = 0; i < m_crumbsPanel->layout()->count(); i++)
   {
     auto item = m_crumbsPanel->layout()->itemAt(i);
-    // Is this item a widget?
+    // Is this item a widget? -> QToolButton
     if (auto widget = item->widget())
     {
-      if (widget->isHidden())
+      auto btn = qobject_cast<QToolButton*>(widget);
+      if (btn)
       {
-        // auto action = new QAction(this->getIcon());
+        if (btn->isHidden())
+        {
+          QVariant var = btn->property("path");
+          QString _path = var.toString();
+          if (!_path.isEmpty())
+          {
+            auto action = new QAction(this->getIcon(_path), btn->text(), menu);
+            action->setData(_path);
+            QObject::connect(action, &QAction::triggered, this, &BreadCrumbsAddressBar::setPath);
+            menu->insertAction(firstAction, action);
+            m_actionsHiddenCrumbs.append(action);
+            firstAction = action;
+          }
+        }
       }
     }
   }
 }
 
-void BreadCrumbsAddressBar::setPath(const QString& path)
+bool BreadCrumbsAddressBar::setPath(const QString& path)
 {
   // Convert to the object that skipped the signal immediately before and obtain the file path from the data contained in the result.
   auto action = qobject_cast<QAction*>(this->sender());
@@ -232,24 +259,47 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
     _path = action->data().toString();
   }
 
-  QFileInfo fileInfo(_path);
-  if (!fileInfo.exists())
+  std::filesystem::path fsPath(_path.toStdString());
+  bool emitErr = false;
+
+  try
   {
-    return;
+    fsPath = fsPath.lexically_normal();
+  }
+  catch(const std::filesystem::filesystem_error&)
+  {
+    emitErr = true;
+    emit signalListDirError(_path);
   }
 
-  QDir dir(_path);
-  _path = dir.canonicalPath();
+  if (!std::filesystem::exists(fsPath))
+  {
+    emitErr = true;
+    emit signalPathError(_path);
+  }
 
   this->cancelEdit();
 
-  // permission error
+  if (emitErr)
+  {
+    return false;
+  }
 
-  // clearcrumbs
   m_path = _path;
   m_lineAddress->setText(_path);
-  // insertcrumbs
-  // for insertcrumbs
+  this->insertCrumbs(_path);
+  for (auto it = fsPath.begin(); it != fsPath.end(); it++)
+  {
+    if (*it == std::filesystem::current_path())
+    {
+      break;
+    }
+    this->insertCrumbs(QString::fromStdString((*it).string()));
+  }
+  m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
+  emit signalPathSelected(m_path);
+
+  return true;
 }
 
 void BreadCrumbsAddressBar::eventConnect()
@@ -306,9 +356,26 @@ void BreadCrumbsAddressBar::insertCrumbs(const QString& path)
   QObject::connect(btn, &QToolButton::clicked, this, &BreadCrumbsAddressBar::slotCrumbClicked);
 
   auto menu = new MenuListView(btn);
-  QObject::connect(menu, &QMenu::aboutToShow, this, &BreadCrumbsAddressBar::slotCrumbMenuShow);
+  QObject::connect(menu, &MenuListView::aboutToShow, this, &BreadCrumbsAddressBar::slotCrumbMenuShow);
   menu->setModel(m_filenameModel);
-  
+  QObject::connect(menu, &MenuListView::clicked, this, &BreadCrumbsAddressBar::slotCrumbMenuItemClicked);
+  QObject::connect(menu, &MenuListView::activated, this, &BreadCrumbsAddressBar::slotCrumbMenuItemClicked);
+  QObject::connect(menu, &MenuListView::aboutToHide, m_mousePosTimer, &QTimer::stop);
+  btn->setMenu(menu);
+  auto retrievedLayout = m_crumbsPanel->layout();
+  QHBoxLayout* boxlayout = dynamic_cast<QHBoxLayout*>(retrievedLayout);
+  if (boxlayout)
+  {
+    boxlayout->insertWidget(0, btn);
+  }
+  else
+  {
+    retrievedLayout->addWidget(btn);
+  }
+  btn->setMinimumSize(btn->minimumSizeHint());
+  auto sp = btn->sizePolicy();
+  sp.setVerticalPolicy(sp.Minimum);
+  btn->setSizePolicy(sp);
 }
 
 void BreadCrumbsAddressBar::slotCrumbClicked()
@@ -328,4 +395,9 @@ void BreadCrumbsAddressBar::slotCrumbMenuShow()
   m_filenameModel->setPathPrefix(menu->parent()->property("path").toString());
   // menu.clearsection
   m_mousePosTimer->start(100);
+}
+
+void BreadCrumbsAddressBar::slotCrumbMenuItemClicked(const QModelIndex& index)
+{
+  this->setPath(index.data(Qt::EditRole).toString());
 }

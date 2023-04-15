@@ -20,6 +20,7 @@
 #include <QVector>
 #include <QAction>
 #include <QIcon>
+#include <QLabel>
 
 class StyleProxy;
 class FilenameModel;
@@ -53,6 +54,7 @@ private:
   QMenu* m_menu;
   bool m_lineAddressIsContextMenu;
   QVector<QAction*> m_actionsHiddenCrumbs;
+  QLabel* m_pathIcon;
 
   void initCompleter(FilenameModel* model, QLineEdit* lineAddress);
   void initRootMenuPlaces(QMenu* menu);
@@ -66,9 +68,15 @@ private:
 
 private slots:
   void hiddenCrumbsMenuShow();
-  void setPath(const QString& path = QString());
+  bool setPath(const QString& path = QString());
   void slotCrumbClicked();
   void slotCrumbMenuShow();
+  void slotCrumbMenuItemClicked(const QModelIndex& index);
+
+signals:
+  void signalPathError(const QString& path);
+  void signalPathSelected(const QString& path);
+  void signalListDirError(const QString& path);
 };
 
 #endif // BREAD_CRUMBS_ADDRESS_BAR_H_
