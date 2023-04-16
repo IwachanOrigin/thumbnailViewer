@@ -83,6 +83,8 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
 
   m_menu = new QMenu(m_btnRootCrumb);
   m_btnRootCrumb->setMenu(m_menu);
+  this->initRootMenuPlaces(m_menu);
+  this->updateRootMenuDevices();
 
   m_crumbsPanel = new QWidget(this);
   auto crumbsLayout = new LeftHBoxLayout(m_crumbsPanel);
@@ -199,7 +201,7 @@ void BreadCrumbsAddressBar::initRootMenuPlaces(QMenu* menu)
     name = this->getPathLabel(name.replace("/", "\\"));
     auto action = menu->addAction(this->getIcon(item.second), name);
     action->setData(item.second);
-    QObject::connect(action, &QAction::trigger, this, [this, action]() {
+    QObject::connect(action, &QAction::triggered, this, [this, action]() {
       this->setPath(action->data().toString());
       });
   }
@@ -260,7 +262,7 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
     QString caption = QString("%1 (%2)").arg(label, path.trimmed());
     auto action = menu->addAction(this->getIcon(path), caption);
     action->setData(path);
-    QObject::connect(action, &QAction::trigger, this, [this, action]() {
+    QObject::connect(action, &QAction::triggered, this, [this, action]() {
       this->setPath(action->data().toString());
       });
     m_actionsDevices.push_back(action);
@@ -272,7 +274,7 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
   {
     auto action = menu->addAction(this->getIcon(path), label);
     action->setData(path);
-    QObject::connect(action, &QAction::trigger, this, [this, action]() {
+    QObject::connect(action, &QAction::triggered, this, [this, action]() {
       this->setPath(action->data().toString());
       });
     m_actionsDevices.push_back(action);
@@ -413,7 +415,7 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
   {
     _path = action->data().toString();
   }
-  std::filesystem::path fsPath(_path.toStdString());
+  std::filesystem::path fsPath(_path.toStdWString());
   bool emitErr = false;
 
   try
@@ -442,16 +444,20 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
   this->clearCrumbs();
   m_path = _path;
   m_lineAddress->setText(_path);
-  //this->insertCrumbs(_path);
+  QString fullpath = "";
   for (auto it = fsPath.begin(); it != fsPath.end(); it++)
   {
-    QString itPath = QString::fromStdString((*it).string());
-    qDebug() << "itPath = " << itPath;
+    QString itPath = QString::fromStdWString((*it).wstring());
     if ("\\" == itPath)
     {
+      fullpath += "\\";
       continue;
     }
-    this->insertCrumbs(itPath);
+    else
+    {
+      fullpath = fullpath + itPath + "\\";
+    }
+    this->insertCrumbs(fullpath, itPath);
   }
   m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
   emit signalPathSelected(m_path);
@@ -497,15 +503,15 @@ void BreadCrumbsAddressBar::clearCrumbs()
   }
 }
 
-void BreadCrumbsAddressBar::insertCrumbs(const QString& path)
+void BreadCrumbsAddressBar::insertCrumbs(const QString& fullpath, const QString& labelName)
 {
   auto btn = new QToolButton(m_crumbsPanel);
   btn->setAutoRepeat(true);
   btn->setPopupMode(QToolButton::MenuButtonPopup);
   // btn->setStyle();
   btn->setMouseTracking(true);
-  btn->setText(this->pathTitle(path));
-  btn->setProperty("path", path);
+  btn->setText(this->pathTitle(labelName));
+  btn->setProperty("path", fullpath);
   QObject::connect(btn, &QToolButton::clicked, this, &BreadCrumbsAddressBar::slotCrumbClicked);
 
   auto menu = new MenuListView(btn);
@@ -519,7 +525,7 @@ void BreadCrumbsAddressBar::insertCrumbs(const QString& path)
   LeftHBoxLayout* boxLayout = dynamic_cast<LeftHBoxLayout*>(retrievedLayout);
   if (boxLayout)
   {
-    //boxLayout->insertWidget(0, btn);
+    // Add to the end
     boxLayout->addWidget(btn);
   }
   else
@@ -550,7 +556,8 @@ void BreadCrumbsAddressBar::slotCrumbMenuShow()
   {
     return;
   }
-  m_filenameModel->setPathPrefix(menu->parent()->property("path").toString() + "\\");
+  // QToolButton class is parent of MenuListView class.
+  m_filenameModel->setPathPrefix(menu->parent()->property("path").toString());
   menu->clearSelection();
   m_mousePosTimer->start(100);
 }

@@ -67,7 +67,7 @@ private:
   void showAddressField(const bool show);
   QIcon getIcon(const QString& path);
   void clearCrumbs();
-  void insertCrumbs(const QString& path);
+  void insertCrumbs(const QString& fullpath, const QString& labelName);
   std::vector<std::pair<QString, QString>> listNetworkLocations();
   void updateRootMenuDevices();
   QString getPathLabel(const QString& drivePath);

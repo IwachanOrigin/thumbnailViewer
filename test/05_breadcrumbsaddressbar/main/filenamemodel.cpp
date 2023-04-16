@@ -3,6 +3,9 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QString>
+
+#include <filesystem>
 
 FilenameModel::FilenameModel(const QStringList& strings, const bool isDir, QObject* parent)
   : QStringListModel(strings, parent)
@@ -27,7 +30,10 @@ QVariant FilenameModel::data(const QModelIndex& index, int role) const
 
   if (role == Qt::DisplayRole)
   {
-    return defaultValue.toString();
+    // Since the actual path is a full path, only the trailing folder name is retrieved and displayed.
+    std::filesystem::path filePath(defaultValue.toString().toStdWString());
+    QString ret = QString::fromStdWString(filePath.filename().wstring());
+    return ret;
   }
 
   return defaultValue;
@@ -79,7 +85,6 @@ void FilenameModel::setPathPrefix(const QString& prefix)
   {
     return;
   }
-
   this->setStringList(this->getFileList(path));
   m_currentPath = path;
 }
