@@ -58,6 +58,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   m_layout->addWidget(m_lineAddress);
 
   this->initCompleter(m_filenameModel, m_lineAddress);
+  //QObject::connect(m_completer, &QCompleter::activated, this, &BreadCrumbsAddressBar::setPath);
 
   m_crumbsContainer = new QWidget(this);
   auto crumbsContainerLayout = new QHBoxLayout(m_crumbsContainer);
@@ -78,7 +79,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
 
   m_crumbsPanel = new QWidget(this);
   auto crumbsLayout = new LeftHBoxLayout(m_crumbsPanel);
-  QObject::connect(crumbsLayout, );
+  QObject::connect(crumbsLayout, &LeftHBoxLayout::signalWidgetStateChanged, this, &BreadCrumbsAddressBar::slotCrumbHideShow);
   crumbsLayout->setContentsMargins(0, 0, 0, 0);
   crumbsLayout->setSpacing(0);
   crumbsContainerLayout->addWidget(m_crumbsPanel);
@@ -268,8 +269,6 @@ void BreadCrumbsAddressBar::slotBrowseForFolder()
     this->setPath(path);
   }
 }
-
-
 
 void BreadCrumbsAddressBar::showAddressField(const bool show)
 {
