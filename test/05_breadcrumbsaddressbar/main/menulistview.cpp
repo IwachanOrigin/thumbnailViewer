@@ -55,6 +55,13 @@ void MenuListView::setModel(QAbstractItemModel* model)
   m_listView->setModel(model);
 }
 
+void MenuListView::clearSelection()
+{
+  m_listView->clearSelection();
+  m_listView->setCurrentIndex(QModelIndex());
+  m_lastIndex = QModelIndex();
+}
+
 void MenuListView::keyPressEvent(QKeyEvent* e)
 {
   int key = e->key();

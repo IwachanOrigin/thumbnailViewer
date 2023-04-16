@@ -55,6 +55,8 @@ private:
   bool m_lineAddressIsContextMenu;
   QVector<QAction*> m_actionsHiddenCrumbs;
   QLabel* m_pathIcon;
+  QToolButton* m_btnRootCrumb;
+  std::vector<QAction*> m_actionsDevices;
 
   void initCompleter(FilenameModel* model, QLineEdit* lineAddress);
   void initRootMenuPlaces(QMenu* menu);
@@ -65,6 +67,8 @@ private:
   QIcon getIcon(const QString& path);
   void clearCrumbs();
   void insertCrumbs(const QString& path);
+  std::vector<std::pair<QString, QString>> listNetworkLocations();
+  void updateRootMenuDevices();
 
 private slots:
   void hiddenCrumbsMenuShow();
@@ -72,6 +76,8 @@ private slots:
   void slotCrumbClicked();
   void slotCrumbMenuShow();
   void slotCrumbMenuItemClicked(const QModelIndex& index);
+  void slotCrumbHideShow();
+  void slotBrowseForFolder();
 
 signals:
   void signalPathError(const QString& path);

@@ -19,6 +19,7 @@ public:
 
   QSize	sizeHint() const override;
   void setModel(QAbstractItemModel* model);
+  void clearSelection();
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;

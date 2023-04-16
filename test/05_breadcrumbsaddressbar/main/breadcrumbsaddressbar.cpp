@@ -16,7 +16,9 @@
 #include <QPainter>
 #include <QStandardPaths>
 #include <QDir>
+#include <QFileDialog>
 #include <QToolButton>
+#include <QStorageInfo>
 #include <QApplication>
 
 #include <filesystem>
@@ -63,19 +65,20 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   crumbsContainerLayout->setSpacing(0);
   m_layout->addWidget(m_crumbsContainer);
 
-  auto btnRootCrumb = new QToolButton(this);
-  btnRootCrumb->setAutoRaise(true);
-  btnRootCrumb->setPopupMode(QToolButton::InstantPopup);
-  btnRootCrumb->setArrowType(Qt::RightArrow);
-  btnRootCrumb->setStyleSheet("");
-  btnRootCrumb->setMinimumSize(btnRootCrumb->minimumSizeHint());
-  crumbsContainerLayout->addWidget(btnRootCrumb);
+  m_btnRootCrumb = new QToolButton(this);
+  m_btnRootCrumb->setAutoRaise(true);
+  m_btnRootCrumb->setPopupMode(QToolButton::InstantPopup);
+  m_btnRootCrumb->setArrowType(Qt::RightArrow);
+  m_btnRootCrumb->setStyleSheet("");
+  m_btnRootCrumb->setMinimumSize(m_btnRootCrumb->minimumSizeHint());
+  crumbsContainerLayout->addWidget(m_btnRootCrumb);
 
-  m_menu = new QMenu(btnRootCrumb);
-  btnRootCrumb->setMenu(m_menu);
+  m_menu = new QMenu(m_btnRootCrumb);
+  m_btnRootCrumb->setMenu(m_menu);
 
   m_crumbsPanel = new QWidget(this);
   auto crumbsLayout = new LeftHBoxLayout(m_crumbsPanel);
+  QObject::connect(crumbsLayout, );
   crumbsLayout->setContentsMargins(0, 0, 0, 0);
   crumbsLayout->setSpacing(0);
   crumbsContainerLayout->addWidget(m_crumbsPanel);
@@ -112,7 +115,7 @@ void BreadCrumbsAddressBar::keyPressEvent(QKeyEvent* event)
   case Qt::Key_Return:
   case Qt::Key_Enter:
   {
-    // 
+    this->setPath(m_lineAddress->text());
     this->showAddressField(false);
   }
   break;
@@ -187,6 +190,87 @@ void BreadCrumbsAddressBar::initRootMenuPlaces(QMenu* menu)
   }
 }
 
+std::vector<std::pair<QString, QString>> BreadCrumbsAddressBar::listNetworkLocations()
+{
+  std::vector<std::pair<QString, QString>> result;
+
+  QString userFolder = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+  QString networkShortcuts = userFolder + "/AppData/Roaming/Microsoft/Windows/Network Shortcuts";
+  QDir networkShortcutsDir(networkShortcuts);
+  for (const QFileInfo& entry : networkShortcutsDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
+  {
+    if (!entry.isDir())
+    {
+      continue;
+    }
+
+    QString targetLinkPath = entry.filePath() + "/target.lnk";
+    QFileInfo targetLink(targetLinkPath);
+    if (!targetLink.exists())
+    {
+      continue;
+    }
+
+    QString path = targetLink.symLinkTarget();
+    if (!path.isEmpty())
+    {
+      result.push_back(std::make_pair(entry.fileName(), path));
+    }
+  }
+  return result;
+}
+
+void BreadCrumbsAddressBar::updateRootMenuDevices()
+{
+  auto menu = m_btnRootCrumb->menu();
+  if (!m_actionsDevices.empty())
+  {
+    for (auto action : m_actionsDevices)
+    {
+      menu->removeAction(action);
+    }
+  }
+  m_actionsDevices.clear();
+  m_actionsDevices.push_back(menu->addSeparator());
+
+  for (const auto& i : QStorageInfo::mountedVolumes())
+  {
+    QString path = i.rootPath();
+    QString label = i.displayName();
+
+    QString caption = QString("%1 (%2)").arg(label, path.trimmed());
+    auto action = menu->addAction(this->getIcon(path), caption);
+    action->setData(path);
+    QObject::connect(action, &QAction::triggered, this, &BreadCrumbsAddressBar::setPath);
+    m_actionsDevices.push_back(action);
+  }
+
+  // Call a function(listNetworkLocations) and store the return value in two values with a structured bound.
+  // c++17 or higher.
+  for (const auto& [label, path] : listNetworkLocations())
+  {
+    auto action = menu->addAction(this->getIcon(path), label);
+    action->setData(path);
+    QObject::connect(action, &QAction::triggered, this, &BreadCrumbsAddressBar::setPath);
+    m_actionsDevices.push_back(action);
+  }
+}
+
+void BreadCrumbsAddressBar::slotBrowseForFolder()
+{
+  auto path = QFileDialog::getExistingDirectory(
+    this
+    , "Choose folder"
+    , m_path
+    );
+  if (path.isEmpty())
+  {
+    this->setPath(path);
+  }
+}
+
+
+
 void BreadCrumbsAddressBar::showAddressField(const bool show)
 {
   if (show)
@@ -201,6 +285,14 @@ void BreadCrumbsAddressBar::showAddressField(const bool show)
     m_lineAddress->hide();
     m_crumbsContainer->show();
   }
+}
+
+void BreadCrumbsAddressBar::slotCrumbHideShow()
+{
+  auto retrievedLayout = m_crumbsPanel->layout();
+  LeftHBoxLayout* boxLayout = dynamic_cast<LeftHBoxLayout*>(retrievedLayout);
+  auto arrow = boxLayout->countHidden() > 0 ? Qt::LeftArrow : Qt::RightArrow;
+  m_btnRootCrumb->setArrowType(arrow);
 }
 
 void BreadCrumbsAddressBar::hiddenCrumbsMenuShow()
@@ -370,10 +462,10 @@ void BreadCrumbsAddressBar::insertCrumbs(const QString& path)
   QObject::connect(menu, &MenuListView::aboutToHide, m_mousePosTimer, &QTimer::stop);
   btn->setMenu(menu);
   auto retrievedLayout = m_crumbsPanel->layout();
-  QHBoxLayout* boxlayout = dynamic_cast<QHBoxLayout*>(retrievedLayout);
-  if (boxlayout)
+  LeftHBoxLayout* boxLayout = dynamic_cast<LeftHBoxLayout*>(retrievedLayout);
+  if (boxLayout)
   {
-    boxlayout->insertWidget(0, btn);
+    boxLayout->insertWidget(0, btn);
   }
   else
   {
@@ -398,9 +490,13 @@ void BreadCrumbsAddressBar::slotCrumbClicked()
 
 void BreadCrumbsAddressBar::slotCrumbMenuShow()
 {
-  auto menu = qobject_cast<QMenu*>(this->sender());
+  auto menu = qobject_cast<MenuListView*>(this->sender());
+  if (!menu)
+  {
+    return;
+  }
   m_filenameModel->setPathPrefix(menu->parent()->property("path").toString());
-  // menu.clearsection
+  menu->clearSelection();
   m_mousePosTimer->start(100);
 }
 
