@@ -1,4 +1,8 @@
 
+#include <Windows.h>
+#include <combaseapi.h>
+#include <ShlObj_core.h>
+
 #include "breadcrumbsaddressbar.h"
 #include "styleproxy.h"
 #include "filenamemodel.h"
@@ -21,10 +25,12 @@
 #include <QStorageInfo>
 #include <QCompleter>
 #include <QApplication>
+#include <QDebug>
 
 #include <filesystem>
 
 const QSize TRANSPARENT_ICON_SIZE = QSize(40, 40);
+const QString CWD_PATH = QString::fromStdString(std::filesystem::current_path().string());
 
 BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   : QFrame(parent, f)
@@ -90,9 +96,12 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   m_btnBrowse->setAutoRaise(true);
   m_btnBrowse->setText("...");
   m_btnBrowse->setToolTip("Browse for folder");
+  QObject::connect(m_btnBrowse, &QToolButton::clicked, this, &BreadCrumbsAddressBar::slotBrowseForFolder);
   m_layout->addWidget(m_btnBrowse);
 
   this->setMaximumHeight(m_lineAddress->height());
+
+  this->setPath(CWD_PATH);
 }
 
 BreadCrumbsAddressBar::~BreadCrumbsAddressBar()
@@ -186,7 +195,9 @@ void BreadCrumbsAddressBar::initRootMenuPlaces(QMenu* menu)
 
   for (auto item : mapStandardPaths)
   {
-    auto action = menu->addAction(this->getIcon(item.second), item.first);
+    auto name = item.second;
+    name = this->getPathLabel(name.replace("/", "\\"));
+    auto action = menu->addAction(this->getIcon(item.second), name);
     action->setData(item.second);
     QObject::connect(action, &QAction::trigger, this, [this, action]() {
       this->setPath(action->data().toString());
@@ -241,6 +252,10 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
   {
     QString path = i.rootPath();
     QString label = i.displayName();
+    if (label == path)
+    {
+      label = this->getPathLabel(path.replace("/", "\\"));
+    }
 
     QString caption = QString("%1 (%2)").arg(label, path.trimmed());
     auto action = menu->addAction(this->getIcon(path), caption);
@@ -264,6 +279,39 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
   }
 }
 
+QString BreadCrumbsAddressBar::getPathLabel(const QString& drivePath)
+{
+  PIDLIST_ABSOLUTE idlist = nullptr;
+
+  HRESULT hr = SHParseDisplayName(drivePath.toStdWString().c_str(), nullptr, &idlist, 0, nullptr);
+  if (FAILED(hr))
+  {
+    throw std::runtime_error("Exception in SHParseDisplayName.");
+  }
+
+  PWSTR name = nullptr;
+  hr = SHGetNameFromIDList(idlist, SIGDN_PARENTRELATIVEEDITING, &name);
+  if (FAILED(hr))
+  {
+    throw std::runtime_error("Exception in SHGetNameFromIDList.");
+  }
+  std::wstring label(name);
+  CoTaskMemFree(name);
+  ILFree(idlist);
+  QString ret = QString::fromStdWString(label);
+  return ret;
+}
+
+QString BreadCrumbsAddressBar::pathTitle(const QString& path)
+{
+  QString ret = path;
+  if (!ret.isEmpty())
+  {
+    ret.replace("//", "");
+  }
+  return ret;
+}
+
 void BreadCrumbsAddressBar::slotBrowseForFolder()
 {
   auto path = QFileDialog::getExistingDirectory(
@@ -271,7 +319,7 @@ void BreadCrumbsAddressBar::slotBrowseForFolder()
     , "Choose folder"
     , m_path
     );
-  if (path.isEmpty())
+  if (!path.isEmpty())
   {
     this->setPath(path);
   }
@@ -365,7 +413,6 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
   {
     _path = action->data().toString();
   }
-
   std::filesystem::path fsPath(_path.toStdString());
   bool emitErr = false;
 
@@ -392,16 +439,19 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
     return;
   }
 
+  this->clearCrumbs();
   m_path = _path;
   m_lineAddress->setText(_path);
-  this->insertCrumbs(_path);
+  //this->insertCrumbs(_path);
   for (auto it = fsPath.begin(); it != fsPath.end(); it++)
   {
-    if (*it == std::filesystem::current_path())
+    QString itPath = QString::fromStdString((*it).string());
+    qDebug() << "itPath = " << itPath;
+    if ("\\" == itPath)
     {
-      break;
+      continue;
     }
-    this->insertCrumbs(QString::fromStdString((*it).string()));
+    this->insertCrumbs(itPath);
   }
   m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
   emit signalPathSelected(m_path);
@@ -427,14 +477,22 @@ QIcon BreadCrumbsAddressBar::getIcon(const QString& path)
 
 void BreadCrumbsAddressBar::clearCrumbs()
 {
-  auto layout = m_crumbsPanel->layout();
-  for (int i = 0; i < layout->count(); i++)
+  auto retrievedLayout = m_crumbsPanel->layout();
+  LeftHBoxLayout* boxLayout = dynamic_cast<LeftHBoxLayout*>(retrievedLayout);
+  if (!boxLayout)
   {
-    auto widget = layout->takeAt(0)->widget();
-    if (widget)
+    return;
+  }
+
+  auto maxCount = boxLayout->countAll();
+  for (int i = 0; i < maxCount; i++)
+  {
+    auto widget = boxLayout->takeAt(0)->widget();
+    QToolButton* btn = dynamic_cast<QToolButton*>(widget);
+    if (btn)
     {
-      widget->setStyle(nullptr);
-      widget->deleteLater();
+      btn->setStyle(nullptr);
+      btn->deleteLater();
     }
   }
 }
@@ -446,7 +504,7 @@ void BreadCrumbsAddressBar::insertCrumbs(const QString& path)
   btn->setPopupMode(QToolButton::MenuButtonPopup);
   // btn->setStyle();
   btn->setMouseTracking(true);
-  btn->setText("");
+  btn->setText(this->pathTitle(path));
   btn->setProperty("path", path);
   QObject::connect(btn, &QToolButton::clicked, this, &BreadCrumbsAddressBar::slotCrumbClicked);
 
@@ -461,7 +519,8 @@ void BreadCrumbsAddressBar::insertCrumbs(const QString& path)
   LeftHBoxLayout* boxLayout = dynamic_cast<LeftHBoxLayout*>(retrievedLayout);
   if (boxLayout)
   {
-    boxLayout->insertWidget(0, btn);
+    //boxLayout->insertWidget(0, btn);
+    boxLayout->addWidget(btn);
   }
   else
   {
@@ -491,7 +550,7 @@ void BreadCrumbsAddressBar::slotCrumbMenuShow()
   {
     return;
   }
-  m_filenameModel->setPathPrefix(menu->parent()->property("path").toString());
+  m_filenameModel->setPathPrefix(menu->parent()->property("path").toString() + "\\");
   menu->clearSelection();
   m_mousePosTimer->start(100);
 }

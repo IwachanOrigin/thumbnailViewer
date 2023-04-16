@@ -34,11 +34,6 @@ MenuListView::MenuListView(QWidget* parent)
 
 MenuListView::~MenuListView()
 {
-  if (m_widgetAction)
-  {
-    delete m_widgetAction;
-    m_widgetAction = nullptr;
-  }
 }
 
 QSize	MenuListView::sizeHint() const

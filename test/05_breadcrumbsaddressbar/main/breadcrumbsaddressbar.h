@@ -70,6 +70,8 @@ private:
   void insertCrumbs(const QString& path);
   std::vector<std::pair<QString, QString>> listNetworkLocations();
   void updateRootMenuDevices();
+  QString getPathLabel(const QString& drivePath);
+  QString pathTitle(const QString& path);
 
 private slots:
   void hiddenCrumbsMenuShow();

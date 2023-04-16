@@ -75,6 +75,11 @@ int LeftHBoxLayout::countHidden() const
   return this->count(CountType::HIDDEN);
 }
 
+int LeftHBoxLayout::countAll() const
+{
+  return this->count();
+}
+
 QSize LeftHBoxLayout::minimumSize() const
 {
   QMargins margins = this->contentsMargins();

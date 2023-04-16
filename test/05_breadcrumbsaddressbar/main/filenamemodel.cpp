@@ -55,7 +55,7 @@ QStringList FilenameModel::getFileList(const QString& path)
   QStringList retList;
   for (auto i : names)
   {
-    retList.push_back(path + "/" +  i);
+    retList.push_back(path + "\\" +  i);
   }
   return retList;
 }

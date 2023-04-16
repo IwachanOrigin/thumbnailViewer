@@ -27,6 +27,7 @@ public:
   void setGeometry(QRect rc);
   int countVisible() const;
   int countHidden() const;
+  int countAll() const;
   QSize minimumSize() const;
   void addWidget(QWidget* widget, const int stretch = 0, Qt::Alignment alignment = Qt::Alignment());
 
