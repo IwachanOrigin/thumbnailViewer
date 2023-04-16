@@ -133,6 +133,11 @@ void BreadCrumbsAddressBar::keyPressEvent(QKeyEvent* event)
   }
   break;
 
+  default:
+  {
+    QApplication::sendEvent(m_lineAddress, event);
+  }
+
   }
 }
 
@@ -172,6 +177,7 @@ void BreadCrumbsAddressBar::initCompleter(FilenameModel* model, QLineEdit* lineA
   }
   lineAddress->setCompleter(m_completer);
   QObject::connect(lineAddress, &QLineEdit::textEdited, model, &FilenameModel::setPathPrefix);
+  
 }
 
 void BreadCrumbsAddressBar::cancelEdit()
