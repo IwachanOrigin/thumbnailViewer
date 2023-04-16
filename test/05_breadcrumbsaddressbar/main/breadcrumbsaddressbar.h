@@ -27,6 +27,9 @@ class FilenameModel;
 
 class BreadCrumbsAddressBar : public QFrame
 {
+
+  Q_OBJECT
+
 public:
   explicit BreadCrumbsAddressBar(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
   virtual ~BreadCrumbsAddressBar();
@@ -62,8 +65,6 @@ private:
   void initRootMenuPlaces(QMenu* menu);
   void cancelEdit();
   void showAddressField(const bool show);
-  void eventConnect();
-  void eventDisconnect();
   QIcon getIcon(const QString& path);
   void clearCrumbs();
   void insertCrumbs(const QString& path);
@@ -72,7 +73,7 @@ private:
 
 private slots:
   void hiddenCrumbsMenuShow();
-  bool setPath(const QString& path = QString());
+  void setPath(const QString& path = QString());
   void slotCrumbClicked();
   void slotCrumbMenuShow();
   void slotCrumbMenuItemClicked(const QModelIndex& index);

@@ -19,6 +19,7 @@
 #include <QFileDialog>
 #include <QToolButton>
 #include <QStorageInfo>
+#include <QCompleter>
 #include <QApplication>
 
 #include <filesystem>
@@ -58,7 +59,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   m_layout->addWidget(m_lineAddress);
 
   this->initCompleter(m_filenameModel, m_lineAddress);
-  //QObject::connect(m_completer, &QCompleter::activated, this, &BreadCrumbsAddressBar::setPath);
+  QObject::connect(m_completer, QOverload<const QString&>::of(&QCompleter::activated), this, &BreadCrumbsAddressBar::setPath);
 
   m_crumbsContainer = new QWidget(this);
   auto crumbsContainerLayout = new QHBoxLayout(m_crumbsContainer);
@@ -187,7 +188,9 @@ void BreadCrumbsAddressBar::initRootMenuPlaces(QMenu* menu)
   {
     auto action = menu->addAction(this->getIcon(item.second), item.first);
     action->setData(item.second);
-    QObject::connect(action, &QAction::trigger, this, &BreadCrumbsAddressBar::setPath);
+    QObject::connect(action, &QAction::trigger, this, [this, action]() {
+      this->setPath(action->data().toString());
+      });
   }
 }
 
@@ -242,7 +245,9 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
     QString caption = QString("%1 (%2)").arg(label, path.trimmed());
     auto action = menu->addAction(this->getIcon(path), caption);
     action->setData(path);
-    QObject::connect(action, &QAction::triggered, this, &BreadCrumbsAddressBar::setPath);
+    QObject::connect(action, &QAction::trigger, this, [this, action]() {
+      this->setPath(action->data().toString());
+      });
     m_actionsDevices.push_back(action);
   }
 
@@ -252,7 +257,9 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
   {
     auto action = menu->addAction(this->getIcon(path), label);
     action->setData(path);
-    QObject::connect(action, &QAction::triggered, this, &BreadCrumbsAddressBar::setPath);
+    QObject::connect(action, &QAction::trigger, this, [this, action]() {
+      this->setPath(action->data().toString());
+      });
     m_actionsDevices.push_back(action);
   }
 }
@@ -336,7 +343,9 @@ void BreadCrumbsAddressBar::hiddenCrumbsMenuShow()
           {
             auto action = new QAction(this->getIcon(_path), btn->text(), menu);
             action->setData(_path);
-            QObject::connect(action, &QAction::triggered, this, &BreadCrumbsAddressBar::setPath);
+            QObject::connect(action, &QAction::trigger, this, [this, action]() {
+              this->setPath(action->data().toString());
+              });
             menu->insertAction(firstAction, action);
             m_actionsHiddenCrumbs.append(action);
             firstAction = action;
@@ -347,7 +356,7 @@ void BreadCrumbsAddressBar::hiddenCrumbsMenuShow()
   }
 }
 
-bool BreadCrumbsAddressBar::setPath(const QString& path)
+void BreadCrumbsAddressBar::setPath(const QString& path)
 {
   // Convert to the object that skipped the signal immediately before and obtain the file path from the data contained in the result.
   auto action = qobject_cast<QAction*>(this->sender());
@@ -380,7 +389,7 @@ bool BreadCrumbsAddressBar::setPath(const QString& path)
 
   if (emitErr)
   {
-    return false;
+    return;
   }
 
   m_path = _path;
@@ -397,18 +406,6 @@ bool BreadCrumbsAddressBar::setPath(const QString& path)
   m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
   emit signalPathSelected(m_path);
 
-  return true;
-}
-
-void BreadCrumbsAddressBar::eventConnect()
-{
-  QObject::connect(m_lineAddress, &QLineEdit::textEdited, m_filenameModel, &FilenameModel::setPathPrefix);
-  
-}
-
-void BreadCrumbsAddressBar::eventDisconnect()
-{
-  
 }
 
 QIcon BreadCrumbsAddressBar::getIcon(const QString& path)
