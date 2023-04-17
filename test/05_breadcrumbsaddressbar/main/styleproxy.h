@@ -10,7 +10,7 @@
 class StyleProxy : public QProxyStyle
 {
 public:
-  explicit StyleProxy(QPixmap& pixmap, QStyle* style = nullptr);
+  explicit StyleProxy(const QPixmap& pixmap, QStyle* style = nullptr);
   virtual ~StyleProxy();
 
   void drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption* option, QPainter* painter, const QWidget* widget = nullptr) const override;

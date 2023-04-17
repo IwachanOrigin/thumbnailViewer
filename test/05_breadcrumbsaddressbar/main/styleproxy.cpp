@@ -4,7 +4,7 @@
 #include <QStyleOption>
 #include <QPainter>
 
-StyleProxy::StyleProxy(QPixmap& pixmap, QStyle* style)
+StyleProxy::StyleProxy(const QPixmap& pixmap, QStyle* style)
   : QProxyStyle(style)
   , m_arrowPixmap(pixmap)
   , m_styleName(this->baseStyle()->objectName())
