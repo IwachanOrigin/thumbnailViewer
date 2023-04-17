@@ -255,9 +255,10 @@ void BreadCrumbsAddressBar::updateRootMenuDevices()
   {
     QString path = i.rootPath();
     QString label = i.displayName();
+    path.replace("/", "\\");
     if (label == path)
     {
-      label = this->getPathLabel(path.replace("/", "\\"));
+      label = this->getPathLabel(path);
     }
 
     QString caption = QString("%1 (%2)").arg(label, path.trimmed());
@@ -443,8 +444,10 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
   }
 
   this->clearCrumbs();
+  _path = _path.replace("/", "\\");
   m_path = _path;
   m_lineAddress->setText(_path);
+  m_filenameModel->setPathPrefix(_path);
   QString fullpath = "";
   for (auto it = fsPath.begin(); it != fsPath.end(); it++)
   {

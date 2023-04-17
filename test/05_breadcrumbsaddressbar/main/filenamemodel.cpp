@@ -62,7 +62,20 @@ QStringList FilenameModel::getFileList(const QString& path)
   QStringList retList;
   for (auto i : names)
   {
-    retList.push_back(path + "\\" +  i);
+    QString _path = "";
+    if (path.endsWith("\\"))
+    {
+      /*
+       * If there is a '\\' at the end, it is assigned twice.
+       * As a result, QCompleter fails to complete.
+       */
+      _path = path + i;
+    }
+    else
+    {
+      _path = path + "\\" + i;
+    }
+    retList.push_back(_path);
   }
   return retList;
 }
@@ -70,34 +83,20 @@ QStringList FilenameModel::getFileList(const QString& path)
 void FilenameModel::setPathPrefix(const QString& prefix)
 {
   QString path = prefix;
-#if 0
-  QFileInfo fileInfo(prefix);
-  if (fileInfo.isFile())
-  {
-    path = fileInfo.absoluteDir().absolutePath();
-  }
-#else
+
   if (!path.endsWith("\\"))
   {
     std::filesystem::path filePath(path.toStdWString());
     std::filesystem::path parentPath = filePath.parent_path();
-    path = QString::fromStdWString(parentPath.wstring());
-    qDebug() << "parent path = " << path;
-  }
-#endif
-  if (path == m_currentPath)
-  {
-    qDebug() << "current path.";
-    return;
+    path = QString::fromStdWString(parentPath.wstring()); // ex. path = C://mypath
   }
 
   QFileInfo fileInfo2(path);
   if (!fileInfo2.exists())
   {
-    qDebug() << "not exist.";
     return;
   }
   this->setStringList(this->getFileList(path));
-  qDebug() << "stringlist = " << this->stringList();
-  m_currentPath = path;
+  qDebug() << "stringList = " << this->stringList();
+  m_currentPath = path; // ex. m_currentPath = c://mypath/
 }
