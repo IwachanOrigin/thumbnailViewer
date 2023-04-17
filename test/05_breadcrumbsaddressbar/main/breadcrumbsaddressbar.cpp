@@ -77,7 +77,7 @@ BreadCrumbsAddressBar::BreadCrumbsAddressBar(QWidget* parent, Qt::WindowFlags f)
   m_btnRootCrumb->setAutoRaise(true);
   m_btnRootCrumb->setPopupMode(QToolButton::InstantPopup);
   m_btnRootCrumb->setArrowType(Qt::RightArrow);
-  m_btnRootCrumb->setStyleSheet("");
+  m_btnRootCrumb->setStyleSheet(":/qss/assets/styles.qss");
   m_btnRootCrumb->setMinimumSize(m_btnRootCrumb->minimumSizeHint());
   crumbsContainerLayout->addWidget(m_btnRootCrumb);
 
