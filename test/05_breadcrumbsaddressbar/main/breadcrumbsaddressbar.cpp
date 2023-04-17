@@ -133,11 +133,6 @@ void BreadCrumbsAddressBar::keyPressEvent(QKeyEvent* event)
   }
   break;
 
-  default:
-  {
-    QApplication::sendEvent(m_lineAddress, event);
-  }
-
   }
 }
 
