@@ -4,28 +4,29 @@
 #include <ShlObj_core.h>
 
 #include "breadcrumbsaddressbar.h"
-#include "styleproxy.h"
+#include "breadcrumbslayout.h"
 #include "filenamemodel.h"
 #include "menulistview.h"
-#include "breadcrumbslayout.h"
+#include "styleproxy.h"
 
-#include <QSize>
-#include <QSizePolicy>
-#include <QStyleFactory>
-#include <QLabel>
-#include <QLineEdit>
-#include <QTimer>
-#include <QMenu>
+#include <QApplication>
 #include <QAbstractItemView>
-#include <QPainter>
-#include <QStandardPaths>
+#include <QCompleter>
+#include <QDebug>
 #include <QDir>
 #include <QFileDialog>
-#include <QToolButton>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMenu>
+#include <QPainter>
+#include <QSize>
+#include <QSizePolicy>
+#include <QStandardPaths>
 #include <QStorageInfo>
-#include <QCompleter>
-#include <QApplication>
-#include <QDebug>
+#include <QStyleFactory>
+#include <QTimer>
+#include <QToolButton>
+#include <QSpacerItem>
 
 #include <filesystem>
 
@@ -462,6 +463,13 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
       fullpath = fullpath + itPath + "\\";
     }
     this->insertCrumbs(fullpath, itPath);
+  }
+
+  auto retrievedLayout = m_crumbsPanel->layout();
+  LeftHBoxLayout* boxLayout = dynamic_cast<LeftHBoxLayout*>(retrievedLayout);
+  if (boxLayout)
+  {
+    boxLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum));
   }
   m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
   emit signalPathSelected(m_path);
