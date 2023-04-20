@@ -19,6 +19,7 @@
 #include <QDateTime>
 
 const unsigned int DURATION_BASE = 10000000;
+const unsigned int LIMIT_FILEINFO = 50;
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
@@ -45,6 +46,11 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
     QFileInfoList infoList = dir.entryInfoList();
     for (int i = 0; i < infoList.size(); i++)
     {
+      if (i > LIMIT_FILEINFO)
+      {
+        break;
+      }
+
       QFileInfo info = infoList.at(i);
       if (info.fileName().compare(".") == 0 || info.fileName().compare("..") == 0)
       {
