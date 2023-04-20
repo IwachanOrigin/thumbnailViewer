@@ -50,7 +50,7 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
       {
         continue;
       }
-      if (this->isMp4(info))
+      if (this->isMovie(info))
       {
         OutputThumbnail ot;
         ot.createAPI();
@@ -68,7 +68,7 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
   }
 }
 
-bool MainWindow::isMp4(const QFileInfo& fileInfo)
+bool MainWindow::isMovie(const QFileInfo& fileInfo)
 {
   QMimeDatabase mimeDatabase;
   QMimeType mimeType;
@@ -76,7 +76,51 @@ bool MainWindow::isMp4(const QFileInfo& fileInfo)
   mimeType = mimeDatabase.mimeTypeForFile(fileInfo);
 
   if (mimeType.inherits("video/mp4"))
+  {
     return true;
+  }
+
+  // m4v
+  if (mimeType.inherits("video/x-m4v"))
+  {
+    return true;
+  }
+
+  // mov
+  if (mimeType.inherits("video/quicktime"))
+  {
+    return true;
+  }
+
+  // mov
+  if (mimeType.inherits("video/x-quicktime"))
+  {
+    return true;
+  }
+
+  // 3g2, 3gp2
+  if (mimeType.inherits("video/3gpp2"))
+  {
+    return true;
+  }
+
+  // 3gp, 3gpp
+  if (mimeType.inherits("video/3gpp"))
+  {
+    return true;
+  }
+
+  // wmv
+  if (mimeType.inherits("video/x-ms-wmv"))
+  {
+    return true;
+  }
+
+  // avi
+  if (mimeType.inherits("video/x-msvideo"))
+  {
+    return true;
+  }
 
   return false;
 }
@@ -103,7 +147,7 @@ void MainWindow::slotClipSelected(QListWidgetItem* item)
   mimeType = mimeDatabase.mimeTypeForFile(info);
   QString str = "";
   QTextStream stream(&str);
-  if (this->isMp4(info))
+  if (this->isMovie(info))
   {
     UINT32 width = 0, height = 0, bitrate = 0, channelCount = 0, samplesPerSec = 0, bitsPerSample = 0;
     LONGLONG duration = 0;

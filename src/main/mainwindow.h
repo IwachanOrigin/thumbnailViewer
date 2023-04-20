@@ -22,7 +22,7 @@ private:
   Ui::MainWindow ui;
 
   void dirFilesInfo(const QString& dirpath);
-  bool isMp4(const QFileInfo& fileInfo);
+  bool isMovie(const QFileInfo& fileInfo);
 
 private slots:
   void slotSelectDir();
