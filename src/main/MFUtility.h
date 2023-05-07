@@ -68,7 +68,7 @@ enum class DeviceType { Audio, Video };
 #define IF_EQUAL_RETURN(param, val) if(val == param) return #val
 #endif
 
-LPCSTR GetGUIDNameConst(const GUID& guid)
+inline static LPCSTR GetGUIDNameConst(const GUID& guid)
 {
   IF_EQUAL_RETURN(guid, MF_MT_MAJOR_TYPE);
   IF_EQUAL_RETURN(guid, MF_MT_MAJOR_TYPE);
@@ -226,23 +226,26 @@ LPCSTR GetGUIDNameConst(const GUID& guid)
 *
 * Potential improvements https://docs.microsoft.com/en-us/windows/win32/medfound/media-type-debugging-code.
 */
-std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
+inline static std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
 {
   HRESULT hr = S_OK;
-  GUID MajorType;
-  UINT32 cAttrCount;
-  LPCSTR pszGuidStr;
-  std::string description;
-  WCHAR TempBuf[200];
+  GUID MajorType{};
+  UINT32 cAttrCount = 0;
+  LPCSTR pszGuidStr = "";
+  std::string description = "";
+  WCHAR TempBuf[200]{};
 
   if (pMediaType == NULL)
   {
     description = "<NULL>";
-    goto done;
+    return description;
   }
 
   hr = pMediaType->GetMajorType(&MajorType);
-  CHECKHR_GOTO(hr, done);
+  if (FAILED(hr))
+  {
+    return description;
+  }
 
   //pszGuidStr = STRING_FROM_GUID(MajorType);
   pszGuidStr = GetGUIDNameConst(MajorType);
@@ -257,18 +260,27 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
   }
 
   hr = pMediaType->GetCount(&cAttrCount);
-  CHECKHR_GOTO(hr, done);
+  if (FAILED(hr))
+  {
+    return description;
+  }
 
   for (UINT32 i = 0; i < cAttrCount; i++)
   {
-    GUID guidId;
-    MF_ATTRIBUTE_TYPE attrType;
+    GUID guidId{};
+    MF_ATTRIBUTE_TYPE attrType{};
 
     hr = pMediaType->GetItemByIndex(i, &guidId, NULL);
-    CHECKHR_GOTO(hr, done);
+    if (FAILED(hr))
+    {
+      return description;
+    }
 
     hr = pMediaType->GetItemType(guidId, &attrType);
-    CHECKHR_GOTO(hr, done);
+    if (FAILED(hr))
+    {
+      return description;
+    }
 
     //pszGuidStr = STRING_FROM_GUID(guidId);
     pszGuidStr = GetGUIDNameConst(guidId);
@@ -280,7 +292,11 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
     {
       LPOLESTR guidStr = NULL;
 
-      CHECKHR_GOTO(StringFromCLSID(guidId, &guidStr), done);
+      hr = StringFromCLSID(guidId, &guidStr);
+      if (FAILED(hr))
+      {
+        return description;
+      }
       auto wGuidStr = std::wstring(guidStr);
       description += std::string(wGuidStr.begin(), wGuidStr.end()); // GUID's won't have wide chars.
 
@@ -293,18 +309,24 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
     {
     case MF_ATTRIBUTE_UINT32:
     {
-      UINT32 Val;
+      UINT32 Val = 0;
       hr = pMediaType->GetUINT32(guidId, &Val);
-      CHECKHR_GOTO(hr, done);
+      if (FAILED(hr))
+      {
+        return description;
+      }
 
       description += std::to_string(Val);
       break;
     }
     case MF_ATTRIBUTE_UINT64:
     {
-      UINT64 Val;
+      UINT64 Val = 0;
       hr = pMediaType->GetUINT64(guidId, &Val);
-      CHECKHR_GOTO(hr, done);
+      if (FAILED(hr))
+      {
+        return description;
+      }
 
       if (guidId == MF_MT_FRAME_SIZE)
       {
@@ -331,9 +353,12 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
     }
     case MF_ATTRIBUTE_DOUBLE:
     {
-      DOUBLE Val;
+      DOUBLE Val = 0.0;
       hr = pMediaType->GetDouble(guidId, &Val);
-      CHECKHR_GOTO(hr, done);
+      if (FAILED(hr))
+      {
+        return description;
+      }
 
       //tempStr.Format("%f", Val);
       description += std::to_string(Val);
@@ -341,11 +366,14 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
     }
     case MF_ATTRIBUTE_GUID:
     {
-      GUID Val;
-      const char* pValStr;
+      GUID Val{};
+      const char* pValStr = nullptr;
 
       hr = pMediaType->GetGUID(guidId, &Val);
-      CHECKHR_GOTO(hr, done);
+      if (FAILED(hr))
+      {
+        return description;
+      }
 
       //pValStr = STRING_FROM_GUID(Val);
       pValStr = GetGUIDNameConst(Val);
@@ -356,7 +384,11 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
       else
       {
         LPOLESTR guidStr = NULL;
-        CHECKHR_GOTO(StringFromCLSID(Val, &guidStr), done);
+        hr = StringFromCLSID(Val, &guidStr);
+        if (FAILED(hr))
+        {
+          return description;
+        }
         auto wGuidStr = std::wstring(guidStr);
         description += std::string(wGuidStr.begin(), wGuidStr.end()); // GUID's won't have wide chars.
 
@@ -373,7 +405,10 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
         description += "<Too Long>";
         break;
       }
-      CHECKHR_GOTO(hr, done);
+      if (FAILED(hr))
+      {
+        return description;
+      }
       auto wstr = std::wstring(TempBuf);
       description += std::string(wstr.begin(), wstr.end()); // It's unlikely the attribute descriptions will contain multi byte chars.
 
@@ -394,8 +429,6 @@ std::string GetMediaTypeDescription(IMFMediaType* pMediaType)
     description += ", ";
   }
 
-done:
-
   return description;
 }
 
@@ -407,25 +440,42 @@ done:
 *
 * Potential improvements https://docs.microsoft.com/en-us/windows/win32/medfound/media-type-debugging-code.
 */
-std::string GetVideoTypeDescriptionBrief(IMFMediaType* pMediaType)
+inline static std::string GetVideoTypeDescriptionBrief(IMFMediaType* pMediaType)
 {
   std::string description = " ";
   GUID subType;
   UINT32 width = 0, height = 0, fpsNum = 0, fpsDen = 0;
 
-  if (pMediaType == NULL) {
+  if (pMediaType == nullptr)
+  {
     description = " <NULL>";
   }
-  else {
-    CHECK_HR(pMediaType->GetGUID(MF_MT_SUBTYPE, &subType), "Failed to get video sub type.");
-    CHECK_HR(MFGetAttributeSize(pMediaType, MF_MT_FRAME_SIZE, &width, &height), "Failed to get MF_MT_FRAME_SIZE attribute.");
-    CHECK_HR(MFGetAttributeRatio(pMediaType, MF_MT_FRAME_RATE, &fpsNum, &fpsDen), "Failed to get MF_MT_FRAME_RATE attribute.");
+  else
+  {
+    HRESULT hr = pMediaType->GetGUID(MF_MT_SUBTYPE, &subType);
+    if(FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get video sub type.", L"Error", MB_OK);
+      return description;
+    }
+
+    hr = MFGetAttributeSize(pMediaType, MF_MT_FRAME_SIZE, &width, &height);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get MF_MT_FRAME_SIZE attribute.", L"Error", MB_OK);
+      return description;
+    }
+
+    hr = MFGetAttributeRatio(pMediaType, MF_MT_FRAME_RATE, &fpsNum, &fpsDen);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get MF_MT_FRAME_RATE attribute.", L"Error", MB_OK);
+      return description;
+    }
 
     description += GetGUIDNameConst(subType);
     description += ", " + std::to_string(width) + "x" + std::to_string(height) + ", " + std::to_string(fpsNum) + "/" + std::to_string(fpsDen) + "fps";
   }
-
-done:
 
   return description;
 }
@@ -1281,7 +1331,7 @@ done:
 * @param[in] length: length of the byte array.
 * @@Returns a null terminated char array.
 */
-unsigned char* HexStr(const uint8_t* start, size_t length)
+inline static unsigned char* HexStr(const uint8_t* start, size_t length)
 {
   // Each byte requires 2 characters. Add one additional byte to hold the null termination char.
   unsigned char* hexStr = (unsigned char*)calloc((size_t)(length * 2 + 1), 1);
