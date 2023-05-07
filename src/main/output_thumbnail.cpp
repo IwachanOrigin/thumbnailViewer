@@ -406,28 +406,101 @@ int OutputThumbnail::getFileInfo(const std::string inputFilename, UINT32& width,
   size_t convertedCharas = 0;
   mbstowcs_s(&convertedCharas, wfilename, inputFilename.c_str(), sizeof(wfilename) / sizeof(wchar_t));
 
-  CHECK_HR(MFCreateSourceResolver(&pSourceResolver), "Failed to MFCreateSourceResolver.");
-  MF_OBJECT_TYPE objectType;
-  CHECK_HR(pSourceResolver->CreateObjectFromURL(wfilename, MF_RESOLUTION_MEDIASOURCE, nullptr, &objectType, &pSource), "Failed to CreateObjectFromURL.");
-  CHECK_HR(pSource->QueryInterface(IID_PPV_ARGS(&pMediaSource)), "Failed to QueryInterface.");
-  CHECK_HR(pMediaSource->CreatePresentationDescriptor(&pPresentationDesc), "Failed to CreatePresentationDescriptor.");
+  hr = MFCreateSourceResolver(pSourceResolver.GetAddressOf());
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to MFCreateSourceResolver.", L"Error", MB_OK);
+    return -1;
+  }
+  MF_OBJECT_TYPE objectType{};
+  hr = pSourceResolver->CreateObjectFromURL(wfilename, MF_RESOLUTION_MEDIASOURCE, nullptr, &objectType, pSource.GetAddressOf());
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to CreateObjectFromURL.", L"Error", MB_OK);
+    return -1;
+  }
+  hr = pSource->QueryInterface(IID_PPV_ARGS(pMediaSource.GetAddressOf()));
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to QueryInterface.", L"Error", MB_OK);
+    return -1;
+  }
+  hr = pMediaSource->CreatePresentationDescriptor(pPresentationDesc.GetAddressOf());
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to CreatePresentationDescriptor.", L"Error", MB_OK);
+    return -1;
+  }
   DWORD streamCount = 0;
-  CHECK_HR(pPresentationDesc->GetStreamDescriptorCount(&streamCount), "Failed to GetStreamDescriptorCount.");
+  hr = pPresentationDesc->GetStreamDescriptorCount(&streamCount);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to GetStreamDescriptorCount.", L"Error", MB_OK);
+    return -1;
+  }
+
   for (int i = 0; i < (int)streamCount; i++)
   {
     BOOL isSelected = FALSE;
-    CHECK_HR(pPresentationDesc->GetStreamDescriptorByIndex(i, &isSelected, &pStreamDesc), "Failed to GetStreamDescriptorByIndex.");
-    CHECK_HR(pStreamDesc->GetMediaTypeHandler(&pMediaTypeHandler), "Failed to GetMediaTypeHandler.");
-    GUID majorType;
-    CHECK_HR(pMediaTypeHandler->GetMajorType(&majorType), "Failed to GetMajorType.");
+    hr = pPresentationDesc->GetStreamDescriptorByIndex(i, &isSelected, pStreamDesc.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to GetStreamDescriptorByIndex.", L"Error", MB_OK);
+      break;
+    }
+    hr = pStreamDesc->GetMediaTypeHandler(pMediaTypeHandler.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to GetMediaTypeHandler.", L"Error", MB_OK);
+      break;
+    }
+    GUID majorType{};
+    hr = pMediaTypeHandler->GetMajorType(&majorType);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to GetMajorType.", L"Error", MB_OK);
+      break;
+    }
+
     if (majorType == MFMediaType_Video)
     {
-      CHECK_HR(pMediaTypeHandler->GetCurrentMediaType(&pMediaType), "Failed to get current media type.");
-      CHECK_HR(MFGetAttributeSize(pMediaType.Get(), MF_MT_FRAME_SIZE, &width, &height), "Failed to get frame size.");
-      CHECK_HR(pMediaType->GetUINT32(MF_MT_AVG_BITRATE, &bitrate), "Failed to get bitrate.");
-      CHECK_HR(MFGetAttributeRatio(pMediaType.Get(), MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator), "Failed to get attribute ratio.");
-      CHECK_HR(MFCreateSourceReaderFromURL(wfilename, nullptr, &pSourceReader), "Failed to MFCreateSourceReaderFromURL.");
-      CHECK_HR(this->getDuration(&duration, pSourceReader.Get()), "Failed to get duration.");
+      hr = pMediaTypeHandler->GetCurrentMediaType(pMediaType.GetAddressOf());
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to get current media type.", L"Error", MB_OK);
+        break;
+      }
+      hr = MFGetAttributeSize(pMediaType.Get(), MF_MT_FRAME_SIZE, &width, &height);
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to get frame size.", L"Error", MB_OK);
+        break;
+      }
+      hr = pMediaType->GetUINT32(MF_MT_AVG_BITRATE, &bitrate);
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to get bitrate.", L"Error", MB_OK);
+        break;
+      }
+      hr = MFGetAttributeRatio(pMediaType.Get(), MF_MT_PIXEL_ASPECT_RATIO, (UINT32*)&par.Numerator, (UINT32*)&par.Denominator);
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to get attribute ratio.", L"Error", MB_OK);
+        break;
+      }
+      hr = MFCreateSourceReaderFromURL(wfilename, nullptr, pSourceReader.GetAddressOf());
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to MFCreateSourceReaderFromURL.", L"Error", MB_OK);
+        break;
+      }
+      hr = this->getDuration(&duration, pSourceReader.Get());
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to get duration.", L"Error", MB_OK);
+        break;
+      }
+
       break;
     }
     else if (majorType == MFMediaType_Audio)
@@ -435,14 +508,18 @@ int OutputThumbnail::getFileInfo(const std::string inputFilename, UINT32& width,
       channelCount = 0;
       samplesPerSec = 0;
       bitsPerSample = 0;
-      CHECK_HR(pMediaTypeHandler->GetCurrentMediaType(&pMediaType), "Failed to get current media type.");
+      hr = pMediaTypeHandler->GetCurrentMediaType(pMediaType.GetAddressOf());
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to get current media type.", L"Error", MB_OK);
+        break;
+      }
       channelCount = MFGetAttributeUINT32(pMediaType.Get(), MF_MT_AUDIO_NUM_CHANNELS, 0);
       samplesPerSec = MFGetAttributeUINT32(pMediaType.Get(), MF_MT_AUDIO_SAMPLES_PER_SECOND, 0);
       bitsPerSample = MFGetAttributeUINT32(pMediaType.Get(), MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
     }
   }
 
-done:
   return hr;
 }
 
@@ -475,7 +552,6 @@ RECT OutputThumbnail::correctAspectRatio(const RECT& src, const MFRatio& srcPAR)
   if ((srcPAR.Numerator != 1) || (srcPAR.Denominator != 1))
   {
     // Correct for the source's PAR.
-
     if (srcPAR.Numerator > srcPAR.Denominator)
     {
       // The source has "wide" pixels, so stretch the width.
