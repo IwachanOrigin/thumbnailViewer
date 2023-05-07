@@ -7,8 +7,8 @@
 class ClipInfo : public QListWidgetItem
 {
 public:
-  ClipInfo(const QString& clipName, const QString& clipFullPath, QListWidget* parent = 0);
-  ClipInfo(const QIcon& icon, const QString& clipName, const QString& clipFullPath, QListWidget* parent = 0);
+  ClipInfo(const QString& clipName, const QString& clipFullPath, QListWidget* parent = nullptr);
+  ClipInfo(const QIcon& icon, const QString& clipName, const QString& clipFullPath, QListWidget* parent = nullptr);
   virtual ~ClipInfo() = default;
 
   QString getClipName() const { return m_clipName; }

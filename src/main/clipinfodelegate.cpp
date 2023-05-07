@@ -49,7 +49,7 @@ void ClipInfoDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	{
 		r = option.rect.adjusted(space + iw, space + ((m_height / 3) * 1), -space, -((m_height / 3) * 1));
 		painter->drawText(r.left(), r.top(), r.width(), r.height(), Qt::AlignLeft | Qt::AlignVCenter, name, &r);
-	}	
+	}
 }
 
 QSize ClipInfoDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const

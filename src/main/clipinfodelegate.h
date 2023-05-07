@@ -4,15 +4,17 @@
 
 class ClipInfoDelegate : public QAbstractItemDelegate
 {
-    Q_OBJECT
-public:
-    explicit ClipInfoDelegate(QObject *parent = 0);
-    virtual ~ClipInfoDelegate() = default;
+  Q_OBJECT
 
-    void paint(QPainter * painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;
-    QSize sizeHint(const QStyleOptionViewItem & option, const QModelIndex & index) const;
+public:
+  explicit ClipInfoDelegate(QObject *parent = nullptr);
+  virtual ~ClipInfoDelegate() = default;
+
+  void paint(QPainter * painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;
+  QSize sizeHint(const QStyleOptionViewItem & option, const QModelIndex & index) const;
+
 private:
-    const int m_width;
-    const int m_height;
+  const int m_width;
+  const int m_height;
 };
 
