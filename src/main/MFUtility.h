@@ -24,12 +24,15 @@
 #include <mmdeviceapi.h>
 #include <wmcodecdsp.h>
 #include <wmsdkidl.h>
+#include <wrl/client.h>
 
 #include <codecvt>
 #include <fstream>
 #include <iostream>
 #include <locale>
 #include <string>
+
+using Microsoft::WRL::ComPtr;
 
 #define CHECK_HR(hr, msg) if (hr != S_OK) { printf(msg); printf(" Error: %.2X.\n", hr); goto done; }
 
@@ -487,29 +490,56 @@ HRESULT FindMatchingVideoType(IMFMediaTypeHandler* pMediaTypeHandler, const GUID
   GUID subType;
   UINT32 w = 0, h = 0, fpsNum = 0, fpsDen = 0;
 
-  CHECK_HR(pMediaTypeHandler->GetMediaTypeCount(&mediaTypeCount),
-    "Failed to get sink media type count.");
+  hr = pMediaTypeHandler->GetMediaTypeCount(&mediaTypeCount);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to get sink media type count.", L"Error", MB_OK);
+    return hr;
+  }
 
-  for (int i = 0; i < (int)mediaTypeCount; i++) {
-    IMFMediaType* pMediaType = NULL;
-    CHECK_HR(pMediaTypeHandler->GetMediaTypeByIndex(i, &pMediaType), "Failed to get media type.");
+  for (int i = 0; i < (int)mediaTypeCount; i++)
+  {
+    ComPtr<IMFMediaType> pMediaType = nullptr;
+    hr = pMediaTypeHandler->GetMediaTypeByIndex(i, pMediaType.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get media type.", L"Error", MB_OK);
+      return hr;
+    }
 
-    CHECK_HR(pMediaType->GetGUID(MF_MT_SUBTYPE, &subType), "Failed to get video sub type.");
-    CHECK_HR(MFGetAttributeSize(pMediaType, MF_MT_FRAME_SIZE, &w, &h), "Failed to get MF_MT_FRAME_SIZE attribute.");
-    CHECK_HR(MFGetAttributeRatio(pMediaType, MF_MT_FRAME_RATE, &fpsNum, &fpsDen), "Failed to get MF_MT_FRAME_RATE attribute.");
+    hr = pMediaType->GetGUID(MF_MT_SUBTYPE, &subType);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get video sub type.", L"Error", MB_OK);
+      return hr;
+    }
 
-    if(IsEqualGUID(pixelFormat, subType) && w == width && h == height && fps == fpsNum && fpsDen == 1) {
-      CHECK_HR(pMediaType->CopyAllItems(pOutMediaType), "Error copying media type attributes.");
-      SAFE_RELEASE(pMediaType);
+    hr = MFGetAttributeSize(pMediaType.Get(), MF_MT_FRAME_SIZE, &w, &h);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get MF_MT_FRAME_SIZE attribute.", L"Error", MB_OK);
+      return hr;
+    }
+
+    hr = MFGetAttributeRatio(pMediaType.Get(), MF_MT_FRAME_RATE, &fpsNum, &fpsDen);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get MF_MT_FRAME_RATE attribute.", L"Error", MB_OK);
+      return hr;
+    }
+
+    if(IsEqualGUID(pixelFormat, subType) && w == width && h == height && fps == fpsNum && fpsDen == 1)
+    {
+      hr = pMediaType->CopyAllItems(pOutMediaType);
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Error copying media type attributes.", L"Error", MB_OK);
+        return hr;
+      }
       hr = S_OK;
       break;
     }
-    else {
-      SAFE_RELEASE(pMediaType);
-    }
   }
-
-done:
   return hr;
 }
 
@@ -526,22 +556,27 @@ HRESULT ListMediaTypes(IMFMediaTypeHandler* pMediaTypeHandler)
   DWORD mediaTypeCount = 0;
 
   hr = pMediaTypeHandler->GetMediaTypeCount(&mediaTypeCount);
-  CHECK_HR(hr, "Failed to get sink media type count.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to get sink media type count.", L"Error", MB_OK);
+    return hr;
+  }
 
   std::cout << "Sink media type count: " << mediaTypeCount << "." << std::endl;
 
-  for (int i = 0; i < (int)mediaTypeCount; i++) {
-    IMFMediaType* pMediaType = NULL;
-    hr = pMediaTypeHandler->GetMediaTypeByIndex(i, &pMediaType);
-    CHECK_HR(hr, "Failed to get media type.");
+  for (int i = 0; i < (int)mediaTypeCount; i++)
+  {
+    ComPtr<IMFMediaType> pMediaType = nullptr;
+    hr = pMediaTypeHandler->GetMediaTypeByIndex(i, pMediaType.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get media type.", L"Error", MB_OK);
+      return hr;
+    }
 
     std::cout << "Media type " << i << ": " << std::endl;
-    std::cout << GetMediaTypeDescription(pMediaType) << std::endl;
-
-    SAFE_RELEASE(pMediaType);
+    std::cout << GetMediaTypeDescription(pMediaType.Get()) << std::endl;
   }
-
-done:
   return hr;
 }
 
@@ -556,8 +591,8 @@ void ListModes(IMFSourceReader* pReader, bool brief = false)
 
   while (SUCCEEDED(hr))
   {
-    IMFMediaType* pType = NULL;
-    hr = pReader->GetNativeMediaType(0, dwMediaTypeIndex, &pType);
+    ComPtr<IMFMediaType> pType = nullptr;
+    hr = pReader->GetNativeMediaType(0, dwMediaTypeIndex, pType.GetAddressOf());
     if (hr == MF_E_NO_MORE_TYPES)
     {
       hr = S_OK;
@@ -565,14 +600,14 @@ void ListModes(IMFSourceReader* pReader, bool brief = false)
     }
     else if (SUCCEEDED(hr))
     {
-      if (!brief) {
-        std::cout << GetMediaTypeDescription(pType) << std::endl;
+      if (!brief)
+      {
+        std::cout << GetMediaTypeDescription(pType.Get()) << std::endl;
       }
-      else {
-        std::cout << GetVideoTypeDescriptionBrief(pType) << std::endl;
+      else
+      {
+        std::cout << GetVideoTypeDescriptionBrief(pType.Get()) << std::endl;
       }
-
-      pType->Release();
     }
     ++dwMediaTypeIndex;
   }
@@ -588,66 +623,90 @@ void ListModes(IMFSourceReader* pReader, bool brief = false)
 */
 HRESULT ListCaptureDevices(DeviceType deviceType)
 {
-  IMFAttributes* pDeviceAttributes = NULL;
+  ComPtr<IMFAttributes> pDeviceAttributes = nullptr;
   IMFActivate** ppDevices = NULL;
   UINT32 deviceCount = 0;
 
   HRESULT hr = S_OK;
 
-  hr = MFCreateAttributes(&pDeviceAttributes, 1);
-  CHECK_HR(hr, "Error creating device attributes.");
+  hr = MFCreateAttributes(pDeviceAttributes.GetAddressOf(), 1);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error creating device attributes.", L"Error", MB_OK);
+    return hr;
+  }
 
-  if (deviceType == DeviceType::Audio) {
+  if (deviceType == DeviceType::Audio)
+  {
     // Request audio capture devices.
     hr = pDeviceAttributes->SetGUID(
       MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
       MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_GUID);
-    CHECK_HR(hr, "Error initialising audio configuration object.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error initialising audio configuration object.", L"Error", MB_OK);
+      return hr;
+    }
   }
-  else {
+  else
+  {
     // Request video capture devices.
     hr = pDeviceAttributes->SetGUID(
       MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
       MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-    CHECK_HR(hr, "Error initialising video configuration object.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error initialising video configuration object.", L"Error", MB_OK);
+      return hr;
+    }
   }
 
-  hr = MFEnumDeviceSources(pDeviceAttributes, &ppDevices, &deviceCount);
-  CHECK_HR(hr, "Error enumerating devices.");
+  hr = MFEnumDeviceSources(pDeviceAttributes.Get(), &ppDevices, &deviceCount);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error enumerating devices.", L"Error", MB_OK);
+    return -1;
+  }
 
   wprintf(L"Device count %d.\n", deviceCount);
 
-  for (UINT i = 0; i < deviceCount; i++) {
-
+  for (UINT i = 0; i < deviceCount; i++)
+  {
     LPWSTR friendlyName = NULL;
     UINT32 friendlyNameLength = 0;
-    IMFMediaSource* pMediaSource = NULL;
-    IMFSourceReader* pSourceReader = NULL;
+    ComPtr<IMFMediaSource> pMediaSource = nullptr;
+    ComPtr<IMFSourceReader> pSourceReader = nullptr;
 
     hr = ppDevices[i]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &friendlyName, &friendlyNameLength);
-    CHECK_HR(hr, "Error retrieving device friendly name.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error retrieving device friendly name.", L"Error", MB_OK);
+      return hr;
+    }
 
     wprintf(L"Device name: %s\n", friendlyName);
 
     hr = ppDevices[i]->ActivateObject(IID_PPV_ARGS(&pMediaSource));
-    CHECK_HR(hr, "Error activating device media source.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error activating device media source.", L"Error", MB_OK);
+      return hr;
+    }
 
     hr = MFCreateSourceReaderFromMediaSource(
-      pMediaSource,
+      pMediaSource.Get(),
       NULL,
-      &pSourceReader);
-    CHECK_HR(hr, "Error creating device source reader.");
+      pSourceReader.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error creating device source reader.", L"Error", MB_OK);
+      return hr;
+    }
 
-    ListModes(pSourceReader);
+    ListModes(pSourceReader.Get());
 
     CoTaskMemFree(friendlyName);
-    SAFE_RELEASE(pMediaSource);
-    SAFE_RELEASE(pSourceReader);
   }
-
-done:
-
-  SAFE_RELEASE(pDeviceAttributes);
   CoTaskMemFree(ppDevices);
 
   return hr;
