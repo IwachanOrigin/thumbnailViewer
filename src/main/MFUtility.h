@@ -13,7 +13,7 @@
 * 03 Jan 2019   Aaron Clauson   Removed managed C++ references.
 *
 * License: Public Domain (no warranty, use at own risk)
-/******************************************************************************/
+******************************************************************************/
 
 #include <stdio.h>
 #include <tchar.h>
@@ -483,7 +483,7 @@ inline static std::string GetVideoTypeDescriptionBrief(IMFMediaType* pMediaType)
   return description;
 }
 
-HRESULT FindMatchingVideoType(IMFMediaTypeHandler* pMediaTypeHandler, const GUID& pixelFormat, uint32_t width, uint32_t height, uint32_t fps, IMFMediaType* pOutMediaType)
+inline static HRESULT FindMatchingVideoType(IMFMediaTypeHandler* pMediaTypeHandler, const GUID& pixelFormat, uint32_t width, uint32_t height, uint32_t fps, IMFMediaType* pOutMediaType)
 {
   HRESULT hr = S_FALSE;
   DWORD mediaTypeCount = 0;
@@ -550,7 +550,7 @@ The media type handler can be acquired from a source reader or sink writer.
 *  the types for.
 * @@Returns S_OK if successful or an error code if not.
 */
-HRESULT ListMediaTypes(IMFMediaTypeHandler* pMediaTypeHandler)
+inline static HRESULT ListMediaTypes(IMFMediaTypeHandler* pMediaTypeHandler)
 {
   HRESULT hr = S_OK;
   DWORD mediaTypeCount = 0;
@@ -584,7 +584,7 @@ HRESULT ListMediaTypes(IMFMediaTypeHandler* pMediaTypeHandler)
 * List all the media modes available on a media source.
 * @param[in] pReader: pointer to the media source reader to list the media types for.
 */
-void ListModes(IMFSourceReader* pReader, bool brief = false)
+inline static void ListModes(IMFSourceReader* pReader, bool brief = false)
 {
   HRESULT hr = NULL;
   DWORD dwMediaTypeIndex = 0;
@@ -621,7 +621,7 @@ void ListModes(IMFSourceReader* pReader, bool brief = false)
 * Remarks:
 * See https://docs.microsoft.com/en-us/windows/win32/coreaudio/device-properties.
 */
-HRESULT ListCaptureDevices(DeviceType deviceType)
+inline static HRESULT ListCaptureDevices(DeviceType deviceType)
 {
   ComPtr<IMFAttributes> pDeviceAttributes = nullptr;
   IMFActivate** ppDevices = NULL;
@@ -721,59 +721,77 @@ HRESULT ListCaptureDevices(DeviceType deviceType)
 * Remarks:
 * See https://docs.microsoft.com/en-us/windows/win32/coreaudio/device-properties.
 */
-HRESULT ListVideoDevicesWithBriefFormat()
+inline static HRESULT ListVideoDevicesWithBriefFormat()
 {
-  IMFAttributes* pDeviceAttributes = NULL;
+  ComPtr<IMFAttributes> pDeviceAttributes = nullptr;
   IMFActivate** ppDevices = NULL;
   UINT32 deviceCount = 0;
 
   HRESULT hr = S_OK;
 
   hr = MFCreateAttributes(&pDeviceAttributes, 1);
-  CHECK_HR(hr, "Error creating device attributes.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error creating device attributes.", L"Error", MB_OK);
+    return hr;
+  }
 
-    // Request video capture devices.
-    hr = pDeviceAttributes->SetGUID(
-      MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-      MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-    CHECK_HR(hr, "Error initialising video configuration object.");
+  // Request video capture devices.
+  hr = pDeviceAttributes->SetGUID(
+    MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
+    MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error initialising video configuration object.", L"Error", MB_OK);
+    return hr;
+  }
 
-  hr = MFEnumDeviceSources(pDeviceAttributes, &ppDevices, &deviceCount);
-  CHECK_HR(hr, "Error enumerating devices.");
+  hr = MFEnumDeviceSources(pDeviceAttributes.Get(), &ppDevices, &deviceCount);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error enumerating devices.", L"Error", MB_OK);
+    return hr;
+  }
 
   wprintf(L"Device count %d.\n", deviceCount);
 
-  for (UINT i = 0; i < deviceCount; i++) {
-
+  for (UINT i = 0; i < deviceCount; i++)
+  {
     LPWSTR friendlyName = NULL;
     UINT32 friendlyNameLength = 0;
-    IMFMediaSource* pMediaSource = NULL;
-    IMFSourceReader* pSourceReader = NULL;
+    ComPtr<IMFMediaSource> pMediaSource = nullptr;
+    ComPtr<IMFSourceReader> pSourceReader = nullptr;
 
     hr = ppDevices[i]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &friendlyName, &friendlyNameLength);
-    CHECK_HR(hr, "Error retrieving device friendly name.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error retrieving device friendly name.", L"Error", MB_OK);
+      return hr;
+    }
 
     wprintf(L"Device name: %s\n", friendlyName);
 
     hr = ppDevices[i]->ActivateObject(IID_PPV_ARGS(&pMediaSource));
-    CHECK_HR(hr, "Error activating device media source.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error activating device media source.", L"Error", MB_OK);
+      return hr;
+    }
 
     hr = MFCreateSourceReaderFromMediaSource(
-      pMediaSource,
+      pMediaSource.Get(),
       NULL,
-      &pSourceReader);
-    CHECK_HR(hr, "Error creating device source reader.");
+      pSourceReader.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error creating device source reader.", L"Error", MB_OK);
+      return hr;
+    }
 
-    ListModes(pSourceReader, true);
+    ListModes(pSourceReader.Get(), true);
 
     CoTaskMemFree(friendlyName);
-    SAFE_RELEASE(pMediaSource);
-    SAFE_RELEASE(pSourceReader);
   }
-
-done:
-
-  SAFE_RELEASE(pDeviceAttributes);
   CoTaskMemFree(ppDevices);
 
   return hr;
@@ -787,52 +805,63 @@ done:
 * Remarks:
 * See https://docs.microsoft.com/en-us/windows/win32/medfound/streaming-audio-renderer.
 */
-HRESULT ListAudioOutputDevices()
+inline static HRESULT ListAudioOutputDevices()
 {
   HRESULT hr = S_OK;
 
-  IMMDeviceEnumerator* pEnum = NULL;      // Audio device enumerator.
-  IMMDeviceCollection* pDevices = NULL;   // Audio device collection.
-  IMMDevice* pDevice = NULL;              // An audio device.
+  ComPtr<IMMDeviceEnumerator> pEnum = nullptr;      // Audio device enumerator.
+  ComPtr<IMMDeviceCollection> pDevices = nullptr;   // Audio device collection.
+  ComPtr<IMMDevice> pDevice = nullptr;              // An audio device.
   UINT deviceCount = 0;
 
   // Create the device enumerator.
   hr = CoCreateInstance(
     __uuidof(MMDeviceEnumerator),
-    NULL,
+    nullptr,
     CLSCTX_ALL,
     __uuidof(IMMDeviceEnumerator),
-    (void**)&pEnum
+    (void**)pEnum.GetAddressOf()
   );
 
   // Enumerate the rendering devices.
-  hr = pEnum->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &pDevices);
-  CHECK_HR(hr, "Failed to enumerate audio end points.");
+  hr = pEnum->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, pDevices.GetAddressOf());
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to enumerate audio end points.", L"Error", MB_OK);
+    return hr;
+  }
 
   hr = pDevices->GetCount(&deviceCount);
-  CHECK_HR(hr, "Failed to get audio end points count.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to get audio end points count.", L"Error", MB_OK);
+    return hr;
+  }
 
   std::cout << "Audio output device count " << deviceCount << "." << std::endl;
 
-  for (UINT i = 0; i < deviceCount; i++) {
+  for (UINT i = 0; i < deviceCount; i++)
+  {
     LPWSTR wstrID = NULL;                   // Device ID.
 
     hr = pDevices->Item(i, &pDevice);
-    CHECK_HR(hr, "Failed to get device for ID.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get device for ID.", L"Error", MB_OK);
+      return hr;
+    }
 
     hr = pDevice->GetId(&wstrID);
-    CHECK_HR(hr, "Failed to get name for device.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get name for device.", L"Error", MB_OK);
+      return hr;
+    }
 
     std::wcout << "Audio output device " << i << ": " << wstrID << "." << std::endl;
 
     CoTaskMemFree(wstrID);
   }
-
-done:
-
-  SAFE_RELEASE(pEnum);
-  SAFE_RELEASE(pDevices);
-  SAFE_RELEASE(pDevice);
 
   return hr;
 }
@@ -844,15 +873,15 @@ done:
 *  the output sink.
 * @@Returns S_OK if successful or an error code if not.
 */
-HRESULT GetAudioOutputDevice(UINT deviceIndex, IMFMediaSink** ppAudioSink)
+inline static HRESULT GetAudioOutputDevice(UINT deviceIndex, IMFMediaSink** ppAudioSink)
 {
   HRESULT hr = S_OK;
 
-  IMMDeviceEnumerator* pEnum = NULL;      // Audio device enumerator.
-  IMMDeviceCollection* pDevices = NULL;   // Audio device collection.
-  IMMDevice* pDevice = NULL;              // An audio device.
-  IMFAttributes* pAttributes = NULL;      // Attribute store.
-  LPWSTR wstrID = NULL;                   // Device ID.
+  ComPtr<IMMDeviceEnumerator> pEnum = nullptr;      // Audio device enumerator.
+  ComPtr<IMMDeviceCollection> pDevices = nullptr;   // Audio device collection.
+  ComPtr<IMMDevice> pDevice = nullptr;              // An audio device.
+  ComPtr<IMFAttributes> pAttributes = nullptr;      // Attribute store.
+  LPWSTR wstrID = NULL;                             // Device ID.
   UINT deviceCount = 0;
 
   // Create the device enumerator.
@@ -861,49 +890,71 @@ HRESULT GetAudioOutputDevice(UINT deviceIndex, IMFMediaSink** ppAudioSink)
     NULL,
     CLSCTX_ALL,
     __uuidof(IMMDeviceEnumerator),
-    (void**)&pEnum
+    (void**)pEnum.GetAddressOf()
   );
 
   // Enumerate the rendering devices.
   hr = pEnum->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &pDevices);
-  CHECK_HR(hr, "Failed to enumerate audio end points.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to enumerate audio end points.", L"Error", MB_OK);
+    return hr;
+  }
 
   hr = pDevices->GetCount(&deviceCount);
-  CHECK_HR(hr, "Failed to get audio end points count.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Failed to get audio end points count.", L"Error", MB_OK);
+    return hr;
+  }
 
-  if (deviceIndex >= deviceCount) {
+  if (deviceIndex >= deviceCount)
+  {
     printf("The audio output device index was invalid.\n");
     hr = E_INVALIDARG;
   }
-  else {
-    hr = pDevices->Item(deviceIndex, &pDevice);
-    CHECK_HR(hr, "Failed to get device for ID.");
+  else
+  {
+    hr = pDevices->Item(deviceIndex, pDevice.GetAddressOf());
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get device for ID.", L"Error", MB_OK);
+      return hr;
+    }
 
     hr = pDevice->GetId(&wstrID);
-    CHECK_HR(hr, "Failed to get name for device.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to get name for device.", L"Error", MB_OK);
+      return hr;
+    }
 
     std::wcout << "Audio output device for index " << deviceIndex << ": " << wstrID << "." << std::endl;
 
     // Create an attribute store and set the device ID attribute.
-    hr = MFCreateAttributes(&pAttributes, 1);
-    CHECK_HR(hr, "Failed to create attribute store.");
+    hr = MFCreateAttributes(pAttributes.GetAddressOf(), 1);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to create attribute store.", L"Error", MB_OK);
+      return hr;
+    }
 
     hr = pAttributes->SetString(MF_AUDIO_RENDERER_ATTRIBUTE_ENDPOINT_ID, wstrID);
-    CHECK_HR(hr, "Failed to set endpoint ID attribute.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to set endpoint ID attribute.", L"Error", MB_OK);
+      return hr;
+    }
 
     // Create the audio renderer.
-    hr = MFCreateAudioRenderer(pAttributes, ppAudioSink);
-    CHECK_HR(hr, "Failed to create the audio output sink.");
+    hr = MFCreateAudioRenderer(pAttributes.Get(), ppAudioSink);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to create the audio output sink.", L"Error", MB_OK);
+      return hr;
+    }
   }
-
-done:
-
   CoTaskMemFree(wstrID);
-  SAFE_RELEASE(pEnum);
-  SAFE_RELEASE(pDevices);
-  SAFE_RELEASE(pDevice);
-  SAFE_RELEASE(pAttributes);
-
   return hr;
 }
 
@@ -915,66 +966,96 @@ done:
 *  to nullptr if no reader is required and only the source is needed.
 * @@Returns S_OK if successful or an error code if not.
 */
-HRESULT GetVideoSourceFromDevice(UINT nDevice, IMFMediaSource** ppVideoSource, IMFSourceReader** ppVideoReader)
+inline static HRESULT GetVideoSourceFromDevice(UINT nDevice, IMFMediaSource** ppVideoSource, IMFSourceReader** ppVideoReader)
 {
   UINT32 videoDeviceCount = 0;
-  IMFAttributes* videoConfig = NULL;
-  IMFActivate** videoDevices = NULL;
-  WCHAR* webcamFriendlyName;
+  ComPtr<IMFAttributes> videoConfig = nullptr;
+  IMFActivate** videoDevices = nullptr;
+  WCHAR* webcamFriendlyName = nullptr;
   UINT nameLength = 0;
-  IMFAttributes* pAttributes = NULL;
+  ComPtr<IMFAttributes> pAttributes = nullptr;
 
   HRESULT hr = S_OK;
 
   // Get the first available webcam.
   hr = MFCreateAttributes(&videoConfig, 1);
-  CHECK_HR(hr, "Error creating video configuration.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error creating video configuration.", L"Error", MB_OK);
+    return hr;
+  }
 
   // Request video capture devices.
   hr = videoConfig->SetGUID(
     MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
     MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-  CHECK_HR(hr, "Error initialising video configuration object.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error initialising video configuration object.", L"Error", MB_OK);
+    return hr;
+  }
 
-  hr = MFEnumDeviceSources(videoConfig, &videoDevices, &videoDeviceCount);
-  CHECK_HR(hr, "Error enumerating video devices.");
+  hr = MFEnumDeviceSources(videoConfig.Get(), &videoDevices, &videoDeviceCount);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error enumerating video devices.", L"Error", MB_OK);
+    return hr;
+  }
 
-  if (nDevice >= videoDeviceCount) {
+  if (nDevice >= videoDeviceCount)
+  {
     printf("The device index of %d was invalid for available device count of %d.\n", nDevice, videoDeviceCount);
     hr = E_INVALIDARG;
   }
-  else {
+  else
+  {
     hr = videoDevices[nDevice]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &webcamFriendlyName, &nameLength);
-    CHECK_HR(hr, "Error retrieving video device friendly name.\n");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error retrieving video device friendly name.\n", L"Error", MB_OK);
+      return hr;
+    }
 
     wprintf(L"Using webcam: %s\n", webcamFriendlyName);
 
     hr = videoDevices[nDevice]->ActivateObject(IID_PPV_ARGS(ppVideoSource));
-    CHECK_HR(hr, "Error activating video device.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error activating video device.", L"Error", MB_OK);
+      return hr;
+    }
 
-    CHECK_HR(MFCreateAttributes(&pAttributes, 1),
-      "Failed to create attributes.");
+    hr = MFCreateAttributes(pAttributes.GetAddressOf(), 1);
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Failed to create attributes.", L"Error", MB_OK);
+      return hr;
+    }
 
-    if (ppVideoReader != nullptr) {
+    if (ppVideoReader != nullptr)
+    {
       // Adding this attribute creates a video source reader that will handle
       // colour conversion and avoid the need to manually convert between RGB24 and RGB32 etc.
-      CHECK_HR(pAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1),
-        "Failed to set enable video processing attribute.");
+      hr = pAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1);
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to set enable video processing attribute.", L"Error", MB_OK);
+        return hr;
+      }
 
       // Create a source reader.
       hr = MFCreateSourceReaderFromMediaSource(
         *ppVideoSource,
-        pAttributes,
+        pAttributes.Get(),
         ppVideoReader);
-      CHECK_HR(hr, "Error creating video source reader.");
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Error creating video source reader.", L"Error", MB_OK);
+        return hr;
+      }
     }
   }
-
-done:
-
-  SAFE_RELEASE(videoConfig);
   SAFE_RELEASE(videoDevices);
-  SAFE_RELEASE(pAttributes);
 
   return hr;
 }
@@ -988,19 +1069,23 @@ done:
 *  to nullptr if no reader is required and only the source is needed.
 * @@Returns S_OK if successful or an error code if not.
 */
-HRESULT GetSourceFromCaptureDevice(DeviceType deviceType, UINT nDevice, IMFMediaSource** ppMediaSource, IMFSourceReader** ppMediaReader)
+inline static HRESULT GetSourceFromCaptureDevice(DeviceType deviceType, UINT nDevice, IMFMediaSource** ppMediaSource, IMFSourceReader** ppMediaReader)
 {
   UINT32 captureDeviceCount = 0;
-  IMFAttributes* pDeviceConfig = NULL;
-  IMFActivate** ppCaptureDevices = NULL;
-  WCHAR* deviceFriendlyName;
+  ComPtr<IMFAttributes> pDeviceConfig = nullptr;
+  IMFActivate** ppCaptureDevices = nullptr;
+  WCHAR* deviceFriendlyName = nullptr;
   UINT nameLength = 0;
-  IMFAttributes* pAttributes = NULL;
+  ComPtr<IMFAttributes> pAttributes = nullptr;
 
   HRESULT hr = S_OK;
 
   hr = MFCreateAttributes(&pDeviceConfig, 1);
-  CHECK_HR(hr, "Error creating capture device configuration.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error creating capture device configuration.", L"Error", MB_OK);
+    return hr;
+  }
 
   GUID captureType = (deviceType == DeviceType::Audio) ?
     MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_AUDCAP_GUID :
@@ -1010,50 +1095,78 @@ HRESULT GetSourceFromCaptureDevice(DeviceType deviceType, UINT nDevice, IMFMedia
   hr = pDeviceConfig->SetGUID(
     MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
     captureType);
-  CHECK_HR(hr, "Error initialising capture device configuration object.");
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error initialising capture device configuration object.", L"Error", MB_OK);
+    return hr;
+  }
 
-  hr = MFEnumDeviceSources(pDeviceConfig, &ppCaptureDevices, &captureDeviceCount);
-  CHECK_HR(hr, "Error enumerating capture devices.");
+  hr = MFEnumDeviceSources(pDeviceConfig.Get(), &ppCaptureDevices, &captureDeviceCount);
+  if (FAILED(hr))
+  {
+    MessageBoxW(nullptr, L"Error enumerating capture devices.", L"Error", MB_OK);
+    return hr;
+  }
 
-  if (nDevice >= captureDeviceCount) {
+  if (nDevice >= captureDeviceCount)
+  {
     printf("The device index of %d was invalid for available device count of %d.\n", nDevice, captureDeviceCount);
     hr = E_INVALIDARG;
   }
-  else {
+  else
+  {
     hr = ppCaptureDevices[nDevice]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &deviceFriendlyName, &nameLength);
-    CHECK_HR(hr, "Error retrieving video device friendly name.\n");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error retrieving video device friendly name.\n", L"Error", MB_OK);
+      return hr;
+    }
 
     wprintf(L"Capture device friendly name: %s\n", deviceFriendlyName);
 
     hr = ppCaptureDevices[nDevice]->ActivateObject(IID_PPV_ARGS(ppMediaSource));
-    CHECK_HR(hr, "Error activating capture device.");
+    if (FAILED(hr))
+    {
+      MessageBoxW(nullptr, L"Error activating capture device.", L"Error", MB_OK);
+      return hr;
+    }
 
     // Is a reader required or does the caller only want the source?
-    if (ppMediaReader != nullptr) {
-      CHECK_HR(MFCreateAttributes(&pAttributes, 1),
-        "Failed to create attributes.");
+    if (ppMediaReader != nullptr)
+    {
+      hr = MFCreateAttributes(&pAttributes, 1);
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Failed to create attributes.", L"Error", MB_OK);
+        return hr;
+      }
 
-      if (deviceType == DeviceType::Video) {
+      if (deviceType == DeviceType::Video)
+      {
         // Adding this attribute creates a video source reader that will handle
         // colour conversion and avoid the need to manually convert between RGB24 and RGB32 etc.
-        CHECK_HR(pAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1),
-          "Failed to set enable video processing attribute.");
+        hr = pAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1);
+        if (FAILED(hr))
+        {
+          MessageBoxW(nullptr, L"Failed to set enable video processing attribute.", L"Error", MB_OK);
+          return hr;
+        }
       }
 
       // Create a source reader.
       hr = MFCreateSourceReaderFromMediaSource(
         *ppMediaSource,
-        pAttributes,
+        pAttributes.Get(),
         ppMediaReader);
-      CHECK_HR(hr, "Error creating media source reader.");
+      if (FAILED(hr))
+      {
+        MessageBoxW(nullptr, L"Error creating media source reader.", L"Error", MB_OK);
+        return hr;
+      }
     }
   }
 
-done:
-
-  SAFE_RELEASE(pDeviceConfig);
   SAFE_RELEASE(ppCaptureDevices);
-  SAFE_RELEASE(pAttributes);
 
   return hr;
 }
@@ -1066,7 +1179,7 @@ done:
 * @param[in] pDest: the media attribute the copy of the key is being made to.
 * @param[in] key: the media attribute key to copy.
 */
-HRESULT CopyAttribute(IMFAttributes* pSrc, IMFAttributes* pDest, const GUID& key)
+inline static HRESULT CopyAttribute(IMFAttributes* pSrc, IMFAttributes* pDest, const GUID& key)
 {
   PROPVARIANT var;
   PropVariantInit(&var);
@@ -1084,72 +1197,11 @@ HRESULT CopyAttribute(IMFAttributes* pSrc, IMFAttributes* pDest, const GUID& key
 }
 
 /**
-* Creates a bitmap file and writes to disk.
-* @param[in] fileName: the path to save the file at.
-* @param[in] width: the width of the bitmap.
-* @param[in] height: the height of the bitmap.
-* @param[in] bitsPerPixel: colour depth of the bitmap pixels (typically 24 or 32).
-* @param[in] bitmapData: a pointer to the bytes containing the bitmap data.
-* @param[in] bitmapDataLength: the number of pixels in the bitmap.
-*/
-void CreateBitmapFile(LPCWSTR fileName, long width, long height, WORD bitsPerPixel, BYTE* bitmapData, DWORD bitmapDataLength)
-{
-  HANDLE file;
-  BITMAPFILEHEADER fileHeader;
-  BITMAPINFOHEADER fileInfo;
-  DWORD writePosn = 0;
-
-  file = CreateFile(fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);  //Sets up the new bmp to be written to
-
-  fileHeader.bfType = 19778;                                                                    //Sets our type to BM or bmp
-  fileHeader.bfSize = sizeof(fileHeader.bfOffBits) + sizeof(RGBTRIPLE);                         //Sets the size equal to the size of the header struct
-  fileHeader.bfReserved1 = 0;                                                                   //sets the reserves to 0
-  fileHeader.bfReserved2 = 0;
-  fileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);											//Sets offbits equal to the size of file and info header
-  fileInfo.biSize = sizeof(BITMAPINFOHEADER);
-  fileInfo.biWidth = width;
-  fileInfo.biHeight = height;
-  fileInfo.biPlanes = 1;
-  fileInfo.biBitCount = bitsPerPixel;
-  fileInfo.biCompression = BI_RGB;
-  fileInfo.biSizeImage = width * height * (bitsPerPixel / 8);
-  fileInfo.biXPelsPerMeter = 2400;
-  fileInfo.biYPelsPerMeter = 2400;
-  fileInfo.biClrImportant = 0;
-  fileInfo.biClrUsed = 0;
-
-  WriteFile(file, &fileHeader, sizeof(fileHeader), &writePosn, NULL);
-
-  WriteFile(file, &fileInfo, sizeof(fileInfo), &writePosn, NULL);
-
-  WriteFile(file, bitmapData, bitmapDataLength, &writePosn, NULL);
-
-  CloseHandle(file);
-}
-
-void CreateBitmapFromSample(LPCWSTR fileName, long width, long height, WORD bitsPerPixel, IMFSample* pSample)
-{
-  IMFMediaBuffer* pMediaBuffer = NULL;
-  DWORD bmpLength = 0;
-  BYTE* bmpBuffer = NULL;
-
-  CHECK_HR(pSample->ConvertToContiguousBuffer(&pMediaBuffer), "CreateBitmapFromSample convert to contiguous buffer failed.");
-  CHECK_HR(pMediaBuffer->Lock(&bmpBuffer, NULL, &bmpLength), "CreateBitmapFromSamplep failed to lock converted buffer IMFSample.");
-
-  CreateBitmapFile(fileName, width, height, bitsPerPixel, bmpBuffer, bmpLength);
-
-  CHECK_HR(pMediaBuffer->Unlock(), "CreateBitmapFromSample unlock buffer failed.");
-
-done:
-  return;
-}
-
-/**
 * Calculate the minimum stride from the media type.
 * From:
 * https://docs.microsoft.com/en-us/windows/win32/medfound/uncompressed-video-buffers
 */
-HRESULT GetDefaultStride(IMFMediaType* pType, LONG* plStride)
+inline static HRESULT GetDefaultStride(IMFMediaType* pType, LONG* plStride)
 {
   LONG lStride = 0;
 
@@ -1168,19 +1220,19 @@ HRESULT GetDefaultStride(IMFMediaType* pType, LONG* plStride)
     hr = pType->GetGUID(MF_MT_SUBTYPE, &subtype);
     if (FAILED(hr))
     {
-      goto done;
+      return hr;
     }
 
     hr = MFGetAttributeSize(pType, MF_MT_FRAME_SIZE, &width, &height);
     if (FAILED(hr))
     {
-      goto done;
+      return hr;
     }
 
     hr = MFGetStrideForBitmapInfoHeader(subtype.Data1, width, &lStride);
     if (FAILED(hr))
     {
-      goto done;
+      return hr;
     }
 
     // Set the attribute for later reference.
@@ -1192,197 +1244,9 @@ HRESULT GetDefaultStride(IMFMediaType* pType, LONG* plStride)
     *plStride = lStride;
   }
 
-done:
   return hr;
 }
 
-/**
-* Dumps the media buffer contents of an IMF sample to a file stream.
-* @param[in] pSample: pointer to the media sample to dump the contents from.
-* @param[in] pFileStream: pointer to the file stream to write to.
-* @@Returns S_OK if successful or an error code if not.
-*/
-HRESULT WriteSampleToFile(IMFSample* pSample, std::ofstream* pFileStream)
-{
-  IMFMediaBuffer* buf = NULL;
-  DWORD bufLength;
-
-  HRESULT hr = S_OK;
-
-  hr = pSample->ConvertToContiguousBuffer(&buf);
-  CHECK_HR(hr, "ConvertToContiguousBuffer failed.");
-
-  hr = buf->GetCurrentLength(&bufLength);
-  CHECK_HR(hr, "Get buffer length failed.");
-
-  printf("Writing sample to capture file sample size %i.\n", bufLength);
-
-  byte* byteBuffer = NULL;
-  DWORD buffMaxLen = 0, buffCurrLen = 0;
-  buf->Lock(&byteBuffer, &buffMaxLen, &buffCurrLen);
-
-  pFileStream->write((char*)byteBuffer, bufLength);
-  pFileStream->flush();
-
-done:
-
-  SAFE_RELEASE(buf);
-
-  return hr;
-}
-
-/**
-* Creates a new single buffer media sample.
-* @param[in] bufferSize: size of the media buffer to set on the create media sample.
-* @param[out] pSample: pointer to the create single buffer media sample.
-* @@Returns S_OK if successful or an error code if not.
-*/
-HRESULT CreateSingleBufferIMFSample(DWORD bufferSize, IMFSample** pSample)
-{
-  IMFMediaBuffer* pBuffer = NULL;
-
-  HRESULT hr = S_OK;
-
-  hr = MFCreateSample(pSample);
-  CHECK_HR(hr, "Failed to create MF sample.");
-
-  // Adds a ref count to the pBuffer object.
-  hr = MFCreateMemoryBuffer(bufferSize, &pBuffer);
-  CHECK_HR(hr, "Failed to create memory buffer.");
-
-  // Adds another ref count to the pBuffer object.
-  hr = (*pSample)->AddBuffer(pBuffer);
-  CHECK_HR(hr, "Failed to add sample to buffer.");
-
-done:
-  // Leave the single ref count that will be removed when the pSample is released.
-  SAFE_RELEASE(pBuffer);
-  return hr;
-}
-
-/**
-* Creates a new media sample and copies the first media buffer from the source to it.
-* @param[in] pSrcSample: size of the media buffer to set on the create media sample.
-* @param[out] pDstSample: pointer to the media sample created.
-* @@Returns S_OK if successful or an error code if not.
-*/
-HRESULT CreateAndCopySingleBufferIMFSample(IMFSample* pSrcSample, IMFSample** pDstSample)
-{
-  IMFMediaBuffer* pDstBuffer = NULL;
-  DWORD srcBufLength;
-
-  HRESULT hr = S_OK;
-
-  // Gets total length of ALL media buffer samples. We can use here because it's only a
-  // single buffer sample copy.
-  hr = pSrcSample->GetTotalLength(&srcBufLength);
-  CHECK_HR(hr, "Failed to get total length from source buffer.");
-
-  hr = CreateSingleBufferIMFSample(srcBufLength, pDstSample);
-  CHECK_HR(hr, "Failed to create new single buffer IMF sample.");
-
-  hr = pSrcSample->CopyAllItems(*pDstSample);
-  CHECK_HR(hr, "Failed to copy IMFSample items from src to dst.");
-
-  hr = (*pDstSample)->GetBufferByIndex(0, &pDstBuffer);
-  CHECK_HR(hr, "Failed to get buffer from sample.");
-
-  hr = pSrcSample->CopyToBuffer(pDstBuffer);
-  CHECK_HR(hr, "Failed to copy IMF media buffer.");
-
-done:
-  SAFE_RELEASE(pDstBuffer);
-  return hr;
-}
-
-/**
-* Attempts to get an output sample from an MFT transform.
-* @param[in] pTransform: pointer to the media transform to apply.
-* @param[out] pOutSample: pointer to the media sample output by the transform. Can be NULL
-*  if the transform did not produce one.
-* @param[out] transformFlushed: if set to true means the transform format changed and the
-*  contents were flushed. Output format of sample most likely changed.
-* @@Returns S_OK if successful or an error code if not.
-*/
-HRESULT GetTransformOutput(IMFTransform* pTransform, IMFSample** pOutSample, BOOL* transformFlushed)
-{
-  MFT_OUTPUT_STREAM_INFO StreamInfo = { 0 };
-  MFT_OUTPUT_DATA_BUFFER outputDataBuffer = { 0 };
-  DWORD processOutputStatus = 0;
-  IMFMediaType* pChangedOutMediaType = NULL;
-
-  HRESULT hr = S_OK;
-  *transformFlushed = FALSE;
-
-  hr = pTransform->GetOutputStreamInfo(0, &StreamInfo);
-  CHECK_HR(hr, "Failed to get output stream info from MFT.");
-
-  outputDataBuffer.dwStreamID = 0;
-  outputDataBuffer.dwStatus = 0;
-  outputDataBuffer.pEvents = NULL;
-
-  if ((StreamInfo.dwFlags & MFT_OUTPUT_STREAM_PROVIDES_SAMPLES) == 0) {
-    hr = CreateSingleBufferIMFSample(StreamInfo.cbSize, pOutSample);
-    CHECK_HR(hr, "Failed to create new single buffer IMF sample.");
-    outputDataBuffer.pSample = *pOutSample;
-  }
-
-  auto mftProcessOutput = pTransform->ProcessOutput(0, 1, &outputDataBuffer, &processOutputStatus);
-
-  //printf("Process output result %.2X, MFT status %.2X.\n", mftProcessOutput, processOutputStatus);
-
-  if (mftProcessOutput == S_OK) {
-    // Sample is ready and allocated on the transform output buffer.
-    *pOutSample = outputDataBuffer.pSample;
-  }
-  else if (mftProcessOutput == MF_E_TRANSFORM_STREAM_CHANGE) {
-    // Format of the input stream has changed. https://docs.microsoft.com/en-us/windows/win32/medfound/handling-stream-changes
-    if (outputDataBuffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_FORMAT_CHANGE) {
-      printf("MFT stream changed.\n");
-
-      hr = pTransform->GetOutputAvailableType(0, 0, &pChangedOutMediaType);
-      CHECK_HR(hr, "Failed to get the MFT output media type after a stream change.");
-
-      std::cout << "MFT output media type: " << GetMediaTypeDescription(pChangedOutMediaType) << std::endl << std::endl;
-
-      hr = pChangedOutMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_IYUV);
-      CHECK_HR(hr, "Failed to set media sub type.");
-
-      hr = pTransform->SetOutputType(0, pChangedOutMediaType, 0);
-      CHECK_HR(hr, "Failed to set new output media type on MFT.");
-
-      hr = pTransform->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, NULL);
-      CHECK_HR(hr, "Failed to process FLUSH command on MFT.");
-
-      *transformFlushed = TRUE;
-    }
-    else {
-      printf("MFT stream changed but didn't have the data format change flag set. Don't know what to do.\n");
-      hr = E_NOTIMPL;
-    }
-
-    SAFE_RELEASE(pOutSample);
-    *pOutSample = NULL;
-  }
-  else if (mftProcessOutput == MF_E_TRANSFORM_NEED_MORE_INPUT) {
-    // More input is not an error condition but it means the allocated output sample is empty.
-    SAFE_RELEASE(pOutSample);
-    *pOutSample = NULL;
-    hr = MF_E_TRANSFORM_NEED_MORE_INPUT;
-  }
-  else {
-    printf("MFT ProcessOutput error result %.2X, MFT status %.2X.\n", mftProcessOutput, processOutputStatus);
-    hr = mftProcessOutput;
-    SAFE_RELEASE(pOutSample);
-    *pOutSample = NULL;
-  }
-
-done:
-
-  SAFE_RELEASE(pChangedOutMediaType);
-
-  return hr;
-}
 
 /**
 * Gets the hex string representation of a byte array.
@@ -1417,13 +1281,13 @@ public:
   HRESULT STDMETHODCALLTYPE Invoke(IMFAsyncResult* pAsyncResult)
   {
     HRESULT hr = S_OK;
-    IMFMediaEvent* pEvent = NULL;
+    ComPtr<IMFMediaEvent> pEvent = nullptr;
     MediaEventType meType = MEUnknown;
     BOOL fGetAnotherEvent = TRUE;
     HRESULT hrStatus = S_OK;
-    IMFMediaEventGenerator* pEventGenerator = NULL;
-    
-    hr = pAsyncResult->GetState((IUnknown**)&pEventGenerator);
+    ComPtr<IMFMediaEventGenerator> pEventGenerator = nullptr;
+
+    hr = pAsyncResult->GetState((IUnknown**)pEventGenerator.GetAddressOf());
     if (!SUCCEEDED(hr))
     {
       printf("Failed to get media event generator from async state.\n");
@@ -1432,7 +1296,7 @@ public:
     // Get the event from the event queue.
     // Assume that m_pEventGenerator is a valid pointer to the
     // event generator's IMFMediaEventGenerator interface.
-    hr = pEventGenerator->EndGetEvent(pAsyncResult, &pEvent);
+    hr = pEventGenerator->EndGetEvent(pAsyncResult, pEvent.GetAddressOf());
 
     // Get the event type.
     if (SUCCEEDED(hr))
@@ -1458,10 +1322,9 @@ public:
     // CEventHandler class, which implements the callback.
     if (fGetAnotherEvent)
     {
-      hr = pEventGenerator->BeginGetEvent(this, pEventGenerator);
+      hr = pEventGenerator->BeginGetEvent(this, pEventGenerator.Get());
     }
 
-    SAFE_RELEASE(pEvent);
     return hr;
   }
 
