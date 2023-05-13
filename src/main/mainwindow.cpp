@@ -3,6 +3,7 @@
 #include "clipinfo.h"
 #include "clipinfodelegate.h"
 #include "output_thumbnail.h"
+#include "breadcrumbsaddressbar.h"
 
 #include <QDir>
 #include <QFile>
@@ -30,7 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
   ui.listWidgetMain->setIconSize(QSize(200, 150));
   ui.listWidgetMain->setResizeMode(QListWidget::Adjust);
 
-  QObject::connect(ui.toolButtonSearchDir, &QToolButton::pressed, this, &MainWindow::slotSelectDir);
+  QObject::connect(ui.frameBreadCrumbsAddressBar, &BreadCrumbsAddressBar::signalPathSelected, this, &MainWindow::slotSetDirPath);
   QObject::connect(ui.listWidgetMain, &QListWidget::itemClicked, this, &MainWindow::slotClipSelected);
 }
 
@@ -131,17 +132,10 @@ bool MainWindow::isMovie(const QFileInfo& fileInfo)
   return false;
 }
 
-void MainWindow::slotSelectDir()
+void MainWindow::slotSetDirPath(const QString& dirPath)
 {
-  QFileDialog dialog(this);
-  dialog.setFileMode(QFileDialog::Directory);
-  if (dialog.exec())
-  {
-    ui.listWidgetMain->clear();
-    QString dirName = dialog.directory().absolutePath();
-    this->dirFilesInfo(dirName);
-    ui.plainTextEditFilePath->setPlainText(dirName);
-  }
+  ui.listWidgetMain->clear();
+  this->dirFilesInfo(dirPath);
 }
 
 void MainWindow::slotClipSelected(QListWidgetItem* item)

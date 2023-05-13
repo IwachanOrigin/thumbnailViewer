@@ -25,7 +25,7 @@ private:
   bool isMovie(const QFileInfo& fileInfo);
 
 private slots:
-  void slotSelectDir();
+  void slotSetDirPath(const QString& dirPath);
   void slotClipSelected(QListWidgetItem* item);
 };
 

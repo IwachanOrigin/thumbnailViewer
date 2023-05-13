@@ -473,7 +473,6 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
   }
   m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
   emit signalPathSelected(m_path);
-
 }
 
 QIcon BreadCrumbsAddressBar::getIcon(const QString& path)
