@@ -473,7 +473,6 @@ void BreadCrumbsAddressBar::setPath(const QString& path)
   }
   m_pathIcon->setPixmap(this->getIcon(m_path).pixmap(16, 16));
   emit signalPathSelected(m_path);
-
 }
 
 QIcon BreadCrumbsAddressBar::getIcon(const QString& path)
@@ -518,9 +517,9 @@ void BreadCrumbsAddressBar::clearCrumbs()
 void BreadCrumbsAddressBar::insertCrumbs(const QString& fullpath, const QString& labelName)
 {
   auto btn = new QToolButton(m_crumbsPanel);
-  btn->setAutoRepeat(true);
+  btn->setAutoRaise(true);
   btn->setPopupMode(QToolButton::MenuButtonPopup);
-  // btn->setStyle();
+  //btn->setStyleSheet("");
   btn->setMouseTracking(true);
   btn->setText(this->pathTitle(labelName));
   btn->setProperty("path", fullpath);

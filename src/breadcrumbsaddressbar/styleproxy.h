@@ -19,7 +19,7 @@ public:
 private:
   QPixmap m_arrowPixmap;
   QString m_styleName;
-  QStringList m_winModen;
+  QStringList m_winModern;
 };
 
 #endif // STYLE_PROXY_H_

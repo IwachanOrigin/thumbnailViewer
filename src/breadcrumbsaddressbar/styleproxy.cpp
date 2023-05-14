@@ -8,7 +8,7 @@ StyleProxy::StyleProxy(const QPixmap& pixmap, QStyle* style)
   : QProxyStyle(style)
   , m_arrowPixmap(pixmap)
   , m_styleName(this->baseStyle()->objectName())
-  , m_winModen({"windowsxp", "windowsvista"})
+  , m_winModern({"windowsxp", "windowsvista"})
 {
 }
 
@@ -18,7 +18,7 @@ StyleProxy::~StyleProxy()
 
 void StyleProxy::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption* option, QPainter* painter, const QWidget* widget) const
 {
-  for (auto stylename : m_winModen)
+  for (auto stylename : m_winModern)
   {
     if (m_styleName == stylename && element == this->PE_IndicatorButtonDropDown)
     {
@@ -44,7 +44,7 @@ void StyleProxy::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOpt
 QRect	StyleProxy::subControlRect(QStyle::ComplexControl cc, const QStyleOptionComplex* option, QStyle::SubControl sc, const QWidget* widget) const
 {
   QRect rect = QProxyStyle::subControlRect(cc, option, sc, widget);
-  for (auto stylename : m_winModen)
+  for (auto stylename : m_winModern)
   {
     if (m_styleName == stylename && sc == this->SC_ToolButtonMenu)
     {

@@ -38,13 +38,9 @@ set(CMAKE_AUTORCC ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Quick QuickControls2 Qml Gui Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Quick QuickControls2 Qml Gui Widgets)
 
-# Add files
-file(GLOB_RECURSE UI_FILES *.ui)
-file(GLOB_RECURSE RC_FILES *.rc)
-file(GLOB_RECURSE QRC_FILES *.qrc)
+# BreadCrumbsAddressBar is lib name by breadcrumbsaddressbar directory.
+set(BREAD_CRUMBS_ADDRESS_BAR_LIB "BreadCrumbsAddressBar")
 
-# Filter
-source_group("Ui Files" FILES ${UI_FILES})
-source_group("Qrc Files" FILES ${QRC_FILES})
-
+add_subdirectory(breadcrumbsaddressbar)
 add_subdirectory(main)
+
