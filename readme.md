@@ -32,7 +32,7 @@
 
 ## Design
 
-    
+![design](https://github.com/IwachanOrigin/thumbnailViewer/assets/12496951/dcf6d049-8f5c-4388-b010-588f6d0ef0e4)
 
 ## Attension
 
