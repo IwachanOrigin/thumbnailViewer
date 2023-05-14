@@ -27,6 +27,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
   ui.setupUi(this);
 
+  this->setWindowTitle("ThumbnailViewer");
+
   ui.listWidgetMain->setItemDelegate(new ClipInfoDelegate());
   ui.listWidgetMain->setIconSize(QSize(200, 150));
   ui.listWidgetMain->setResizeMode(QListWidget::Adjust);

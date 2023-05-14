@@ -10,7 +10,7 @@
 
 ## Demo
 
-    
+![demo](https://github.com/IwachanOrigin/thumbnailViewer/assets/12496951/c8b453c2-a643-4dc8-ac24-3ed889c11b3a)
 
 ## Verification OS
 
