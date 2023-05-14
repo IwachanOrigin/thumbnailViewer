@@ -57,7 +57,12 @@ void MainWindow::dirFilesInfo(const QString& dirpath)
       {
         continue;
       }
-      if (this->isMovie(info))
+
+      if (info.isDir())
+      {
+        ui.listWidgetMain->addItem(new ClipInfo(QIcon(":/icons/assets/folder.png"), info.fileName(), info.absoluteFilePath()));
+      }
+      else if (this->isMovie(info))
       {
         OutputThumbnail ot;
         ot.createAPI();
